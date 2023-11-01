@@ -9,7 +9,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
     ws->PORT = calloc(1, sizeof(uint16_t));
 
     memcpy(ws->HOST, hostname, HOSTNAME_MAX_LENGTH * sizeof(char)); // TODO: Unsafe ? as hostname might be shorter than HOSTNAME_MAX_LENGTH
-    memcpy(ws->PORT, port_str, sizeof(port_str)); // TODO: ^ same here ?
+    memcpy(ws->PORT, port_str, sizeof(*port_str)); // TODO: ^ same here ?
 
     return ws;
 }
@@ -30,12 +30,23 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    if (socket_listen(ws->PORT) < 0) {
+    int sockfd;
+    if (socket_listen(ws->PORT, &sockfd) < 0) {
         perror("Socket Creation failed.");
         exit(EXIT_FAILURE);
     }
 
-    webserver_print(ws);
+    // TODO: How to exit?
+    while(1) {
+        // TODO: Multithread with fork to accept multiple simultaneous connections
+
+        int *in_fd;
+        if (socket_accept(&sockfd, in_fd) < 0) return -1;
+
+        webserver_print(ws);
+    }
+
+    socket_close(&sockfd);
 
     return 0;
 }
