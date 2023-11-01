@@ -1,7 +1,3 @@
-//
-// Created by Maximilian Rudolph on 01.11.23.
-//
-
 #ifndef RN_PRAXIS_SOCKET_H
 #define RN_PRAXIS_SOCKET_H
 

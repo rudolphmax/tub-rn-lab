@@ -1,7 +1,3 @@
-//
-// Created by Maximilian Rudolph on 01.11.23.
-//
-
 #include "socket.h"
 
 int socket_listen(char *port) {

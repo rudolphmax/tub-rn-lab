@@ -1,6 +1,4 @@
-
 #include "webserver.h"
-#include "lib/utils.h"
 #include "lib/socket.h"
 
 webserver* webserver_init(char* hostname, char* port_str) {
@@ -12,7 +10,6 @@ webserver* webserver_init(char* hostname, char* port_str) {
 
     memcpy(ws->HOST, hostname, HOSTNAME_MAX_LENGTH * sizeof(char)); // TODO: Unsafe ? as hostname might be shorter than HOSTNAME_MAX_LENGTH
     memcpy(ws->PORT, port_str, sizeof(port_str)); // TODO: ^ same here ?
-    //if (str_to_uint16(port_str, ws->PORT) < 0) return NULL;
 
     return ws;
 }
