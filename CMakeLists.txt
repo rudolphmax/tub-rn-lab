@@ -10,4 +10,6 @@ set(CPACK_SOURCE_IGNORE_FILES
 )
 set(CPACK_VERBATIM_VARIABLES YES)
 include(CPack)
-add_executable(webserver webserver.c)
+add_executable(webserver src/webserver.c
+        src/webserver.h
+)
