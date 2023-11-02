@@ -9,7 +9,8 @@ webserver* webserver_init(char* hostname, char* port_str) {
     ws->PORT = calloc(1, sizeof(uint16_t));
 
     memcpy(ws->HOST, hostname, HOSTNAME_MAX_LENGTH * sizeof(char)); // TODO: Unsafe ? as hostname might be shorter than HOSTNAME_MAX_LENGTH
-    memcpy(ws->PORT, port_str, sizeof(*port_str)); // TODO: ^ same here ?
+    // TODO: Store port as uint16 (as per TCP/IP standard) and convert back to char* in socket_listen
+    memcpy(ws->PORT, port_str, sizeof(port_str)); // TODO: ^ same here ?
 
     return ws;
 }
