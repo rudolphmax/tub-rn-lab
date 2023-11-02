@@ -7,10 +7,13 @@
 
 #define HOSTNAME_MAX_LENGTH 15
 #define EXPECTED_NUMBER_OF_PARAMS 2 // TODO: Good name?
+#define MAX_NUM_OPEN_SOCKETS 1
 
 struct {
     char* HOST;
     u_int16_t* PORT;
+    int** open_sockets; // TODO: Well typed?
+    int num_open_sockets;
 } typedef webserver;
 
 /*
