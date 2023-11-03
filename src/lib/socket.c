@@ -10,6 +10,11 @@ int socket_accept(int *sockfd, int *in_fd) {
 }
 
 int socket_listen(webserver *ws) {
+    if (ws->num_open_sockets >= MAX_NUM_OPEN_SOCKETS) {
+        perror("Maximum number of open open_sockets reached.");
+        return -1;
+    }
+
     struct addrinfo hints, *res;
 
     memset(&hints, 0, sizeof(hints));
@@ -17,19 +22,14 @@ int socket_listen(webserver *ws) {
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    getaddrinfo(ws->HOST, ws->PORT, &hints, &res);
-
-    if (ws->num_open_sockets >= MAX_NUM_OPEN_SOCKETS) {
-        perror("Maximum number of open open_sockets reached.");
-        return -1;
-    }
+    if (getaddrinfo(ws->HOST, ws->PORT, &hints, &res) != 0) return -1;
 
     int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sockfd < 0) return -1;
 
     if (bind(sockfd, res->ai_addr, res->ai_addrlen) < 0) return -1;
-    // TODO: Which BACKLOG to use? As, currently, only one connection is accepted
-    listen(sockfd, 10); // TODO: Absract BACKLOG to separate configuration
+    // TODO: Which BACKLOG_COUNT to use? As, currently, only one connection is accepted
+    listen(sockfd, BACKLOG_COUNT);
 
     ws->open_sockets[ws->num_open_sockets] = &sockfd;
     ws->num_open_sockets++;
@@ -37,8 +37,15 @@ int socket_listen(webserver *ws) {
     return 0;
 }
 
-int socket_shutdown(int *sockfd) {
+int socket_shutdown(webserver *ws, int *sockfd) {
     shutdown(*sockfd, SHUT_RDWR);
+
+    // remove socket from open_socket list
+    for (int i = 0; i < MAX_NUM_OPEN_SOCKETS; i++) {
+        if (*(ws->open_sockets[i]) == *sockfd) {
+            ws->open_sockets[i] = NULL;
+        }
+    }
 }
 
 int socket_is_listening(int *sockfd) {

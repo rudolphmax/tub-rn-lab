@@ -7,6 +7,8 @@
 #include <netdb.h>
 #include "../webserver.h"
 
+#define BACKLOG_COUNT 10
+
 /*
  * Opens a listening socket on the given port @ localhost
  * and accepts a single connection.
@@ -23,7 +25,7 @@ int socket_accept(int *sockfd, int *in_fd);
 /*
  * Shuts a given socket down safely.
  */
-int socket_shutdown(int *sockfd);
+int socket_shutdown(webserver *ws, int *sockfd);
 
 /*
  * Determines whether a given socket (by file descriptor) is listening.

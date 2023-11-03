@@ -10,9 +10,18 @@ webserver* webserver_init(char* hostname, char* port_str) {
     ws->open_sockets = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(int*));
     ws->num_open_sockets = 0;
 
-    memcpy(ws->HOST, hostname, HOSTNAME_MAX_LENGTH * sizeof(char)); // TODO: Unsafe ? as hostname might be shorter than HOSTNAME_MAX_LENGTH
-    // TODO: Store port as uint16 (as per TCP/IP standard) and convert back to char* in socket_listen
-    memcpy(ws->PORT, port_str, sizeof(port_str)); // TODO: ^ same here ?
+    if (strlen(hostname)+1 > HOSTNAME_MAX_LENGTH) {
+        perror("Invalid hostname");
+        return NULL;
+    }
+    memcpy(ws->HOST, hostname, HOSTNAME_MAX_LENGTH * sizeof(char));
+
+    if (str_is_uint16(port_str) < 0) {
+        perror("Invalid port.");
+        return NULL;
+    }
+    int port_str_len = strlen(port_str)+1; // +1 for \0
+    memcpy(ws->PORT, port_str, port_str_len * sizeof(char));
 
     return ws;
 }
@@ -27,7 +36,7 @@ void webserver_print(webserver *ws) {
     printf("\n");
 }
 
-int webserver_free(webserver *ws) {
+void webserver_free(webserver *ws) {
     free(ws->HOST);
     free(ws->PORT);
     free(ws->open_sockets);
@@ -73,10 +82,10 @@ int main(int argc, char **argv) {
 
     for (int i; i < ws->num_open_sockets; i++) {
         int *sockfd = ws->open_sockets[i];
-        socket_shutdown(sockfd);
+        socket_shutdown(NULL, sockfd);
     }
 
-    // TODO: free webserver
+    webserver_free(ws);
 
     return 0;
 }
