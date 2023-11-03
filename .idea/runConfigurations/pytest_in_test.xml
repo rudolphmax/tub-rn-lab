@@ -1,19 +1,19 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="pytest for test.test_praxis1" type="tests" factoryName="py.test" nameIsGenerated="true">
+  <configuration default="false" name="pytest in test" type="tests" factoryName="py.test" nameIsGenerated="true">
     <module name="tub-rn-lab-1" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <option name="SDK_HOME" value="$USER_HOME$/miniconda/envs/RN-Praxis/bin/python" />
     <option name="SDK_NAME" value="RN-Praxis" />
     <option name="WORKING_DIRECTORY" value="" />
-    <option name="IS_MODULE_SDK" value="false" />
+    <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <option name="_new_keywords" value="&quot;&quot;" />
     <option name="_new_parameters" value="&quot;&quot;" />
     <option name="_new_additionalArguments" value="&quot;&quot;" />
-    <option name="_new_target" value="&quot;test.test_praxis1&quot;" />
-    <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+    <option name="_new_target" value="&quot;test&quot;" />
+    <option name="_new_targetType" value="&quot;PATH&quot;" />
     <method v="2" />
   </configuration>
 </component>
