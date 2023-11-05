@@ -54,5 +54,5 @@ int socket_is_listening(int *sockfd) {
 
     if (getsockopt(*sockfd, SOL_SOCKET, SO_ACCEPTCONN, &func, &len) < 0) return -1;
 
-    return func;
+    return 0;
 }

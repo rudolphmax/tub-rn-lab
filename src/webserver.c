@@ -30,7 +30,7 @@ void webserver_print(webserver *ws) {
     printf("Webserver running @ %s:%u.", ws->HOST, *ws->PORT);
     printf("%u open open_sockets: ", ws->num_open_sockets);
 
-    for (int i; i < ws->num_open_sockets; i++) {
+    for (int i = 0; i < ws->num_open_sockets; i++) {
         printf("%u", *(ws->open_sockets[i]));
     }
     printf("\n");
@@ -65,10 +65,10 @@ int main(int argc, char **argv) {
         // TODO: Multithread with fork to accept multiple simultaneous connections
 
         // Deciding what to do for each open socket - are they listening or not?
-        for (int i; i < ws->num_open_sockets; i++) {
+        for (int i = 0; i < ws->num_open_sockets; i++) {
             int *sockfd = ws->open_sockets[i];
 
-            if (socket_is_listening(sockfd) > 0) { // socket is listening, so accept
+            if (socket_is_listening(sockfd) == 0) { // socket is listening, so accept
                 int *in_fd;
                 if (socket_accept(sockfd, in_fd) < 0) {
                     perror("Socket failed to accept.");
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
         webserver_print(ws);
     }
 
-    for (int i; i < ws->num_open_sockets; i++) {
+    for (int i = 0; i < ws->num_open_sockets; i++) {
         int *sockfd = ws->open_sockets[i];
         socket_shutdown(NULL, sockfd);
     }
