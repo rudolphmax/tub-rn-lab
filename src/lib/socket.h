@@ -20,7 +20,7 @@ int socket_listen(webserver *ws);
  * Accepts connections on a given socket and fills `in_fd`
  * with the connection's file descriptor.
  */
-int socket_accept(int *sockfd, int *in_fd);
+int socket_accept(int *sockfd);
 
 /*
  * Shuts a given socket down safely.

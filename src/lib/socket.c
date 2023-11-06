@@ -1,12 +1,10 @@
 #include "socket.h"
 
-int socket_accept(int *sockfd, int *in_fd) {
-    struct sockaddr_storage* *in_addr;
+int socket_accept(int *sockfd) {
+    struct sockaddr_storage in_addr;
     socklen_t in_addr_size = sizeof(in_addr);
-    *in_fd = accept(*sockfd, (struct sockaddr*) &in_addr, &in_addr_size);
 
-    if (*in_fd < 0) return -1;
-    return 0;
+    return accept(*sockfd, (struct sockaddr*) &in_addr, &in_addr_size);
 }
 
 int socket_listen(webserver *ws) {
@@ -46,13 +44,4 @@ int socket_shutdown(webserver *ws, int *sockfd) {
             ws->open_sockets[i] = NULL;
         }
     }
-}
-
-int socket_is_listening(int *sockfd) {
-    int func;
-    int len = sizeof(func);
-
-    if (getsockopt(*sockfd, SOL_SOCKET, SO_ACCEPTCONN, &func, &len) < 0) return -1;
-
-    return 0;
 }
