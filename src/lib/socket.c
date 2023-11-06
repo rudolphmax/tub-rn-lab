@@ -35,6 +35,15 @@ int socket_listen(webserver *ws) {
     return 0;
 }
 
+int socket_send(int* sockfd, char* message) {
+    unsigned long len = strlen(message);
+    long bytes_sent = send(*sockfd, message, len, 0);
+
+    printf("Sent %lu characters of: '%s'", len, message);
+    if (bytes_sent < 0 ) return -1;
+    return 0;
+}
+
 int socket_shutdown(webserver *ws, int *sockfd) {
     shutdown(*sockfd, SHUT_RDWR);
 

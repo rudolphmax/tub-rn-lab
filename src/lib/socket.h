@@ -22,6 +22,13 @@ int socket_listen(webserver *ws);
  */
 int socket_accept(int *sockfd);
 
+
+/*
+ * Accepts connections on a given socket and fills `in_fd`
+ * with the connection's file descriptor.
+ */
+int socket_send(int *sockfd, char* message);
+
 /*
  * Shuts a given socket down safely.
  */
