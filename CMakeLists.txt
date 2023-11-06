@@ -12,4 +12,8 @@ set(CPACK_VERBATIM_VARIABLES YES)
 include(CPack)
 add_executable(webserver src/webserver.c
         src/webserver.h
+        src/lib/socket.c
+        src/lib/socket.h
+        src/lib/utils.c
+        src/lib/utils.h
 )
