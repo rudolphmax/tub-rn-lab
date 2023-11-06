@@ -68,16 +68,16 @@ int main(int argc, char **argv) {
         for (int i = 0; i < ws->num_open_sockets; i++) {
             int *sockfd = ws->open_sockets[i];
 
-            if (socket_is_listening(sockfd) == 0) { // socket is listening, so accept
-                int *in_fd;
-                if (socket_accept(sockfd, in_fd) < 0) {
+            int in_fd = socket_accept(sockfd);
+            if (in_fd < 0) {
+                if (errno != EINVAL) {
                     perror("Socket failed to accept.");
                     continue;
                 }
-            } else continue;
+                // accept failed because socket is unwilling to listen.
+                // TODO: Handle non-listening sockets
+            }
         }
-
-        webserver_print(ws);
     }
 
     for (int i = 0; i < ws->num_open_sockets; i++) {
