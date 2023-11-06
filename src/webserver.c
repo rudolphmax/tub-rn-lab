@@ -74,9 +74,11 @@ int main(int argc, char **argv) {
                     perror("Socket failed to accept.");
                     continue;
                 }
-                // accept failed because socket is unwilling to listen.
+                // else: accept failed because socket is unwilling to listen.
                 // TODO: Handle non-listening sockets
             }
+
+            socket_send(&in_fd, "Reply");
         }
     }
 
