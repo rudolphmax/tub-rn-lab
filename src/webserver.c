@@ -78,7 +78,14 @@ int main(int argc, char **argv) {
                 // TODO: Handle non-listening sockets
             }
 
-            socket_send(&in_fd, "Reply");
+            int bufsize = MAX_DATA_SIZE * sizeof(char);
+            char buf[bufsize];
+
+            if (socket_receive_all(&in_fd, buf, bufsize) == 0) {
+                socket_send(&in_fd, buf);
+            } else {
+                perror("Socket didn't receive valid package.");
+            }
         }
     }
 
