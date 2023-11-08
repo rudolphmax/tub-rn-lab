@@ -31,7 +31,7 @@ void webserver_print(webserver *ws) {
     printf("%u open open_sockets: ", ws->num_open_sockets);
 
     for (int i = 0; i < ws->num_open_sockets; i++) {
-        printf("%u", *(ws->open_sockets[i]));
+        printf("%u", ws->open_sockets[i]);
     }
     printf("\n");
 }
