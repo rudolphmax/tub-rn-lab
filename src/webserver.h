@@ -15,7 +15,7 @@ struct {
     char* HOST;
     char* PORT;
     // Pointer to array of pointers to file descriptors of currently open sockets. Length: MAX_NUM_OPEN_SOCKETS
-    int** open_sockets;
+    int* open_sockets;
     int num_open_sockets;
 } typedef webserver;
 

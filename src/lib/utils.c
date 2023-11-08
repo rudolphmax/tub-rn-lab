@@ -10,3 +10,16 @@ int str_is_uint16(const char *str) {
 
     return 0;
 }
+
+int string_ends_with_emptyline(char* str) {
+    int len = strlen(str);
+    if (len < 4) return -1; // We are checking the last 4 bytes so they should exist
+
+    // str = ...\r\n\r\n
+    //   len-4  ^      ^ len-1
+    if (str[len - 4] != '\r' || str[len - 3] != '\n' || str[len - 2] != '\r' || str[len - 1] != '\n') {
+        return 1;
+    }
+
+    return 0;
+}

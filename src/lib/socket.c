@@ -29,7 +29,7 @@ int socket_listen(webserver *ws) {
     // TODO: Which BACKLOG_COUNT to use? As, currently, only one connection is accepted
     listen(sockfd, BACKLOG_COUNT);
 
-    ws->open_sockets[ws->num_open_sockets] = &sockfd;
+    ws->open_sockets[ws->num_open_sockets] = sockfd;
     ws->num_open_sockets++;
     freeaddrinfo(res);
     return 0;
@@ -50,26 +50,25 @@ int socket_receive(int *in_fd, char* buf, size_t bufsize) {
 }
 
 int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
-    int bytes_received = 1; // 1 for adding/keeping a \0 at the end
-    // setting
+    int bytes_received = 0;
     memset(buf, 0, bufsize);
 
-    // TODO: Receive until empty line (basically "\r\n\r\n", one CRLF from the previous and one from the empty-line)
     // Receiving until buffer ends with CLRF (except last byte which is \0)
-    while (buf[bufsize - 2] != '\r' && buf[bufsize - 1] != '\n') {
+    while (string_ends_with_emptyline(buf) != 0) {
+        // TODO: This might discard the first packet if two are read consecutively
         if (bytes_received >= bufsize - 1) {
             perror("Buffer full before entire package read.");
             return -1;
         }
 
-        // Receiving one line of data from stream
+        // Receiving data from stream once
         int t = socket_receive(
                 in_fd,
                     // buffer[0 - bytes_received-1] is full of data,
                     // buffer[bytes_received] is where we want to continue to write (the next first byte)
-                    buf + bytes_received, // TODO: this pointer arithmetic isn't working yet.
-                    // the size of the space from buffer[bytes_received] to buffer[bufsize]
-                    bufsize - bytes_received
+                    buf + bytes_received,
+                    // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
+                    (bufsize-1) - bytes_received
                 );
 
         if (t == -1) return -1;
@@ -77,7 +76,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
     }
 
     // Making sure buffer ends in \0 for safety
-    buf[bufsize] = '\0';
+    buf[bufsize-1] = '\0';
     return 0;
 }
 
@@ -86,8 +85,8 @@ int socket_shutdown(webserver *ws, int *sockfd) {
 
     // remove socket from open_socket list
     for (int i = 0; i < MAX_NUM_OPEN_SOCKETS; i++) {
-        if (*(ws->open_sockets[i]) == *sockfd) {
-            ws->open_sockets[i] = NULL;
+        if (ws->open_sockets[i] == *sockfd) {
+            ws->open_sockets[i] = 0;
         }
     }
 

@@ -7,7 +7,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
 
     ws->HOST = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
     ws->PORT = calloc(1, sizeof(uint16_t));
-    ws->open_sockets = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(int*));
+    ws->open_sockets = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(int));
     ws->num_open_sockets = 0;
 
     if (strlen(hostname)+1 > HOSTNAME_MAX_LENGTH) {
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
 
         // Deciding what to do for each open socket - are they listening or not?
         for (int i = 0; i < ws->num_open_sockets; i++) {
-            int *sockfd = ws->open_sockets[i];
+            int *sockfd = &(ws->open_sockets[i]);
 
             int in_fd = socket_accept(sockfd);
             if (in_fd < 0) {
@@ -78,19 +78,25 @@ int main(int argc, char **argv) {
                 // TODO: Handle non-listening sockets
             }
 
-            int bufsize = MAX_DATA_SIZE * sizeof(char);
-            char buf[bufsize];
+            char* buf = calloc(MAX_DATA_SIZE, sizeof(char));
 
-            if (socket_receive_all(&in_fd, buf, bufsize) == 0) {
-                socket_send(&in_fd, buf);
+            if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
+                socket_send(&in_fd, "Reply\r\n\r\n");
+
+                /*
+                if (socket_shutdown(ws, &in_fd) != 0) {
+                    perror("Socket shutdown failed.");
+                    return -1;
+                }
+                */
             } else {
-                perror("Socket didn't receive valid package.");
+                perror("Socket couldn't read package.");
             }
         }
     }
 
     for (int i = 0; i < ws->num_open_sockets; i++) {
-        int *sockfd = ws->open_sockets[i];
+        int *sockfd = &(ws->open_sockets[i]);
         socket_shutdown(NULL, sockfd);
     }
 
