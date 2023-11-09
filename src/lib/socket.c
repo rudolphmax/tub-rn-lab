@@ -39,7 +39,6 @@ int socket_send(int* sockfd, char* message) {
     unsigned long len = strlen(message);
     long bytes_sent = send(*sockfd, message, len, 0);
 
-    printf("Sent %lu characters of: '%s'", len, message);
     if (bytes_sent < 0 ) return -1;
     return 0;
 }
@@ -54,7 +53,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
     memset(buf, 0, bufsize);
 
     // Receiving until buffer ends with CLRF (except last byte which is \0)
-    while (string_ends_with_emptyline(buf) != 0) {
+    while (string_ends_with_empty_line(buf) != 0) {
         // TODO: This might discard the first packet if two are read consecutively
         if (bytes_received >= bufsize - 1) {
             perror("Buffer full before entire package read.");

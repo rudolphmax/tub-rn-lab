@@ -5,13 +5,19 @@
 #include <sys/errno.h>
 #include <string.h>
 
+/**
+ * Determines whether a given string could be interpreted as an uint16.
+ * Attempts a conversion from char* to uint16_t to see if it fails. The result isn't saved.
+ * @param str the string to be checked
+ * @return 1 if the string could be a uint16 if converted, 0 if not.
+ */
 int str_is_uint16(const char *str);
 
 /**
  * Checks if a given string-buffer end with a CRLF ('\r\n\r\n')
  * @param str input string to check
- * @return 0 if it ends with CRLF, 1 if it doesn't, -1 on error
+ * @return 1 if it ends with CRLF, 0 if it doesn't, -1 on error
  */
-int string_ends_with_emptyline(char* str);
+int string_ends_with_empty_line(char* str);
 
 #endif //RN_PRAXIS_UTILS_H
