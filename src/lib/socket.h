@@ -10,23 +10,27 @@
 
 #define BACKLOG_COUNT 10
 
-/*
- * Opens a listening socket on the given port @ localhost
- * and accepts a single connection.
- * The socket's file descriptor is written to sockfd
+/**
+ * Opens a listening socket for the given webserver (which provides PORT & HOST).
+ * The resulting socket's file descriptor is written to sockfd.
+ * @param ws the webserver to open the socket for
+ * @return 0 on success, -1 on error
  */
 int socket_listen(webserver *ws);
 
-/*
- * Accepts connections on a given socket and fills `in_fd`
- * with the connection's file descriptor.
+/**
+ * Accepts connections on a given socket and fills `in_fd` with the connection's file descriptor.
+ * @param sockfd accepting socket's file descriptor
+ * @return incoming connection's socket-fd
  */
 int socket_accept(int *sockfd);
 
 
-/*
- * Accepts connections on a given socket and fills `in_fd`
- * with the connection's file descriptor.
+/**
+ * Accepts connections on a given socket and fills `in_fd` with the connection's file descriptor.
+ * @param sockfd accepting socket's file descriptor
+ * @param message the message to be sent
+ * @return 0 on success, -1 on error (just like sys/send)
  */
 int socket_send(int *sockfd, char* message);
 
@@ -49,15 +53,12 @@ int socket_receive(int *in_fd, char *buf, size_t bufsize);
  */
 int socket_receive_all(int *in_fd, char *buf, size_t bufsize);
 
-/*
- * Shuts a given socket down safely.
+/**
+ * Shuts both sides of a given socket down.
+ * @param ws the webserver the socket open on.
+ * @param sockfd the connected socket's file descriptor
+ * @return 0 on success, -1 on error
  */
 int socket_shutdown(webserver *ws, int *sockfd);
-
-/*
- * Determines whether a given socket (by file descriptor) is listening.
- * @returns >0 when the socket is listening, 0 when it's not & <0 on error.
- */
-int socket_is_listening(int *sockfd);
 
 #endif //RN_PRAXIS_SOCKET_H
