@@ -26,6 +26,44 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
+int webserver_tick(webserver *ws) {
+    // TODO: Multithread with fork to accept multiple simultaneous connections
+
+    // Deciding what to do for each open socket - are they listening or not?
+    for (int i = 0; i < ws->num_open_sockets; i++) {
+        int *sockfd = &(ws->open_sockets[i]);
+
+        int in_fd = socket_accept(sockfd);
+        if (in_fd < 0) {
+            if (errno != EINVAL) {
+                perror("Socket failed to accept.");
+                continue;
+            }
+            // else: accept failed because socket is unwilling to listen.
+            // TODO: Handle non-listening sockets
+        }
+
+        int connection_is_alive = 1;
+        while (connection_is_alive) {
+            char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
+
+            if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
+                socket_send(&in_fd, "Reply\r\n\r\n");
+
+            } else if (errno == ENOTCONN) { // TODO: Does this really work..?
+                connection_is_alive = 0;
+
+                if (socket_shutdown(ws, &in_fd) != 0) {
+                    perror("Socket shutdown failed.");
+                    return -1;
+                }
+            } else {
+                perror("Socket couldn't read package.");
+            }
+        }
+    }
+}
+
 void webserver_print(webserver *ws) {
     printf("Webserver running @ %s:%u.", ws->HOST, *ws->PORT);
     printf("%u open open_sockets: ", ws->num_open_sockets);
@@ -60,39 +98,9 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    // TODO: How to exit?
-    while(1) {
-        // TODO: Multithread with fork to accept multiple simultaneous connections
-
-        // Deciding what to do for each open socket - are they listening or not?
-        for (int i = 0; i < ws->num_open_sockets; i++) {
-            int *sockfd = &(ws->open_sockets[i]);
-
-            int in_fd = socket_accept(sockfd);
-            if (in_fd < 0) {
-                if (errno != EINVAL) {
-                    perror("Socket failed to accept.");
-                    continue;
-                }
-                // else: accept failed because socket is unwilling to listen.
-                // TODO: Handle non-listening sockets
-            }
-
-            char* buf = calloc(MAX_DATA_SIZE, sizeof(char));
-
-            if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
-                socket_send(&in_fd, "Reply\r\n\r\n");
-
-                /*
-                if (socket_shutdown(ws, &in_fd) != 0) {
-                    perror("Socket shutdown failed.");
-                    return -1;
-                }
-                */
-            } else {
-                perror("Socket couldn't read package.");
-            }
-        }
+    int quit = 0;
+    while(!quit) {
+        if (webserver_tick(ws) != 0) quit = 1;
     }
 
     for (int i = 0; i < ws->num_open_sockets; i++) {

@@ -28,6 +28,13 @@ struct {
 webserver* webserver_init(char* hostname, char* port_str);
 
 /**
+ * Executes one lifetime-tick of the given webserver
+ * @param ws the webserver to tickle.
+ * @return 0 on success, -1 on error
+ */
+int webserver_tick(webserver *ws);
+
+/**
  * Prints relevant information on the webserver-object to the console.
  * @param ws The webserver who's info is to be printed
  */
