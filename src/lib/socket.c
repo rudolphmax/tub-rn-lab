@@ -3,6 +3,7 @@
 int socket_accept(int *sockfd) {
     struct sockaddr_storage in_addr;
     socklen_t in_addr_size = sizeof(in_addr);
+    debug_print("Accepting connection...");
 
     return accept(*sockfd, (struct sockaddr*) &in_addr, &in_addr_size);
 }
@@ -60,6 +61,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
             return -1;
         }
 
+        debug_print("Receiving data...");
         // Receiving data from stream once
         int t = socket_receive(
                 in_fd,
@@ -69,6 +71,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
                     // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
                     (bufsize-1) - bytes_received
                 );
+        printf("Received %d bytes.\n", t);
 
         if (t == -1) return -1;
         else bytes_received += t;
@@ -76,6 +79,8 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
 
     // Making sure buffer ends in \0 for safety
     buf[bufsize-1] = '\0';
+    printf("Received total: %s bytes\n", buf);
+
     return 0;
 }
 
@@ -86,6 +91,7 @@ int socket_shutdown(webserver *ws, int *sockfd) {
     for (int i = 0; i < MAX_NUM_OPEN_SOCKETS; i++) {
         if (ws->open_sockets[i] == *sockfd) {
             ws->open_sockets[i] = 0;
+            debug_print("Shutting down socket...");
         }
     }
 

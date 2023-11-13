@@ -1,4 +1,9 @@
 #include "utils.h"
+#include <stdio.h>
+
+void debug_print(char* message) {
+    printf("DEBUG: %s\n", message);
+}
 
 int str_is_uint16(const char *str) {
     char *end;

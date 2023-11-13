@@ -6,6 +6,12 @@
 #include <string.h>
 
 /**
+ * Prints a given debug message to the console.
+ * @param message the message to be printed
+ */
+void debug_print(char *message);
+
+/**
  * Determines whether a given string could be interpreted as an uint16.
  * Attempts a conversion from char* to uint16_t to see if it fails. The result isn't saved.
  * @param str the string to be checked
