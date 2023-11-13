@@ -50,7 +50,7 @@ int webserver_tick(webserver *ws) {
             char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
 
             if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
-                socket_send(&in_fd, "Reply\r\n\r\n");
+                socket_send(&in_fd, "HTTP/1.1 400\r\n\r\n");
 
             } else if (errno == ENOTCONN) { // TODO: Does this really work..?
                 connection_is_alive = 0;
