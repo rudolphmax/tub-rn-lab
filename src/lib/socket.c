@@ -29,7 +29,7 @@ int socket_listen(webserver *ws) {
     // TODO: Which BACKLOG_COUNT to use? As, currently, only one connection is accepted
     listen(sockfd, BACKLOG_COUNT);
 
-    ws->open_sockets[ws->num_open_sockets] = &sockfd;
+    ws->open_sockets[ws->num_open_sockets] = sockfd;
     ws->num_open_sockets++;
     freeaddrinfo(res);
     return 0;
@@ -39,18 +39,52 @@ int socket_send(int* sockfd, char* message) {
     unsigned long len = strlen(message);
     long bytes_sent = send(*sockfd, message, len, 0);
 
-    printf("Sent %lu characters of: '%s'", len, message);
+    // TODO: bytes_sent < len -> send the rest as well
     if (bytes_sent < 0 ) return -1;
     return 0;
 }
 
+int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
+    int bytes_received = 0;
+    memset(buf, 0, bufsize);
+
+    // Receiving until buffer ends with CLRF (except last byte which is \0)
+    while (string_ends_with_empty_line(buf) != 0) {
+        // TODO: This might discard the first packet if two are read consecutively
+        if (bytes_received >= bufsize - 1) {
+            perror("Buffer full before entire package read.");
+            return -1;
+        }
+
+        // Receiving data from stream once
+        int t = recv(
+                    *in_fd,
+                    // buffer[0 - bytes_received-1] is full of data,
+                    // buffer[bytes_received] is where we want to continue to write (the next first byte)
+                    buf + bytes_received,
+                    // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
+                    (bufsize-1) - bytes_received,
+                    0
+                );
+
+        if (t == -1) return -1;
+        else bytes_received += t;
+    }
+
+    // Making sure buffer ends in \0 for safety
+    buf[bufsize-1] = '\0';
+    return 0;
+}
+
 int socket_shutdown(webserver *ws, int *sockfd) {
-    shutdown(*sockfd, SHUT_RDWR);
+    if (shutdown(*sockfd, SHUT_RDWR) < 0) return -1;
 
     // remove socket from open_socket list
     for (int i = 0; i < MAX_NUM_OPEN_SOCKETS; i++) {
-        if (*(ws->open_sockets[i]) == *sockfd) {
-            ws->open_sockets[i] = NULL;
+        if (ws->open_sockets[i] == *sockfd) {
+            ws->open_sockets[i] = 0;
         }
     }
+
+    return 0;
 }

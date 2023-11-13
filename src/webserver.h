@@ -9,27 +9,40 @@
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
 #define EXPECTED_NUMBER_OF_PARAMS 2
 #define MAX_NUM_OPEN_SOCKETS 1
+#define MAX_DATA_SIZE 1024
 
 struct {
     char* HOST;
     char* PORT;
-    // Pointer to array of pointers to file descriptors of currently open sockets. Length: MAX_NUM_OPEN_SOCKETS
-    int** open_sockets;
+    // Array of file descriptors (int) of currently open sockets. Length: MAX_NUM_OPEN_SOCKETS
+    int* open_sockets;
     int num_open_sockets;
 } typedef webserver;
 
-/*
+/**
  * Initializes a new webserver-object from a given hostname and port.
+ * @param hostname the server hostname (IPv4)
+ * @param port_str the servers port (per TCP/IP spec, a valid uint16) in string-form
+ * @return A webserver object on success, NULL on error.
  */
 webserver* webserver_init(char* hostname, char* port_str);
 
-/*
+/**
+ * Executes one lifetime-tick of the given webserver
+ * @param ws the webserver to tickle.
+ * @return 0 on success, -1 on error
+ */
+int webserver_tick(webserver *ws);
+
+/**
  * Prints relevant information on the webserver-object to the console.
+ * @param ws The webserver who's info is to be printed
  */
 void webserver_print(webserver *ws);
 
-/*
+/**
  * Frees the given webserver-object
+ * @param ws The webserver to be freed.
  */
 void webserver_free(webserver *ws);
 
