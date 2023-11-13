@@ -39,13 +39,9 @@ int socket_send(int* sockfd, char* message) {
     unsigned long len = strlen(message);
     long bytes_sent = send(*sockfd, message, len, 0);
 
+    // TODO: bytes_sent < len -> send the rest as well
     if (bytes_sent < 0 ) return -1;
     return 0;
-}
-
-int socket_receive(int *in_fd, char* buf, size_t bufsize) {
-    int n_bytes = recv(*in_fd, buf, bufsize, 0);
-    return n_bytes;
 }
 
 int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
@@ -61,13 +57,14 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
         }
 
         // Receiving data from stream once
-        int t = socket_receive(
-                in_fd,
+        int t = recv(
+                    *in_fd,
                     // buffer[0 - bytes_received-1] is full of data,
                     // buffer[bytes_received] is where we want to continue to write (the next first byte)
                     buf + bytes_received,
                     // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
-                    (bufsize-1) - bytes_received
+                    (bufsize-1) - bytes_received,
+                    0
                 );
 
         if (t == -1) return -1;

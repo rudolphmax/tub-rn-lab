@@ -12,7 +12,7 @@
 
 /**
  * Opens a listening socket for the given webserver (which provides PORT & HOST).
- * The resulting socket's file descriptor is written to sockfd.
+ * The resulting socket's file descriptor is written to ws->open_sockets.
  * @param ws the webserver to open the socket for
  * @return 0 on success, -1 on error
  */
@@ -33,16 +33,6 @@ int socket_accept(int *sockfd);
  * @return 0 on success, -1 on error (just like sys/send)
  */
 int socket_send(int *sockfd, char* message);
-
-/**
- * Performs a one-line receive on an incoming socket
- * Wrapper for sys/scoket/recv
- * @param in_fd incoming socket file descriptor
- * @param buf char buffer to write to
- * @param bufsize size of buf
- * @return 0 on success, -1 on error
- */
-int socket_receive(int *in_fd, char *buf, size_t bufsize);
 
 /**
  * Receives data from an incoming socket, until CRLF is received.

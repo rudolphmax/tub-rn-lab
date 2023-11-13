@@ -33,6 +33,7 @@ int webserver_tick(webserver *ws) {
     for (int i = 0; i < ws->num_open_sockets; i++) {
         int *sockfd = &(ws->open_sockets[i]);
 
+        // TODO: Which socket-fds do we actually need? Which one does what?
         int in_fd = socket_accept(sockfd);
         if (in_fd < 0) {
             if (errno != EINVAL) {
@@ -41,6 +42,7 @@ int webserver_tick(webserver *ws) {
             }
             // else: accept failed because socket is unwilling to listen.
             // TODO: Handle non-listening sockets
+            continue;
         }
 
         int connection_is_alive = 1;
