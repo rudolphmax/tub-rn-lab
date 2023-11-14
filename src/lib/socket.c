@@ -59,24 +59,24 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
 
         debug_print("Receiving data...");
         // Receiving data from stream once
-        int t = recv(
-                    *in_fd,
-                    // buffer[0 - bytes_received-1] is full of data,
-                    // buffer[bytes_received] is where we want to continue to write (the next first byte)
-                    buf + bytes_received,
-                    // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
-                    (bufsize-1) - bytes_received,
-                    0
-                );
-        printf("Received %d bytes.\n", t);
+        int n_bytes = recv(
+                        *in_fd,
+                        // buffer[0 - bytes_received-1] is full of data,
+                        // buffer[bytes_received] is where we want to continue to write (the next first byte)
+                        buf + bytes_received,
+                        // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
+                        (bufsize-1) - bytes_received,
+                        0
+                    );
+        printf("Received %d bytes.\n", n_bytes);
 
-        if (t == -1) return -1;
-        else bytes_received += t;
+        if (n_bytes == -1) return -1;
+        else bytes_received += n_bytes;
     }
 
     // Making sure buffer ends in \0 for safety
     buf[bufsize-1] = '\0';
-    printf("Received total: %s bytes\n", buf);
+    printf("Full Message: \n------ \n%s------\n", buf);
 
     return 0;
 }

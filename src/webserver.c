@@ -26,6 +26,33 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
+int headersValid(char* buf) {
+    int endline_index = strstr(buf, "\r\n") - buf;
+    char* header_line = calloc(endline_index, sizeof(char));
+    header_line = strncpy(header_line, buf, endline_index);
+
+    char *delimiter = " ";
+    char *ptr = strtok(header_line, delimiter);
+    int header_field_num = 0;
+
+    // debug_print("Header line:");
+    while(ptr != NULL) {
+        // printf("%s ", ptr);
+        // naechsten Abschnitt erstellen
+        ptr = strtok(NULL, delimiter);
+
+        header_field_num++;
+    }
+
+    // printf("\n");
+    free(header_line);
+
+    if (header_field_num != 3) {
+        return 0;
+    }
+    return 1;
+}
+
 int webserver_tick(webserver *ws) {
     // TODO: Multithread with fork to accept multiple simultaneous connections
 
@@ -50,7 +77,15 @@ int webserver_tick(webserver *ws) {
             char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
 
             if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
-                socket_send(&in_fd, "HTTP/1.1 400\r\n\r\n");
+                if (headersValid(buf) == 1) {
+                    if (strncmp(buf, "GET", 3) == 0) {
+                        socket_send(&in_fd, "HTTP/1.1 404\r\n\r\n");
+                    } else {
+                        socket_send(&in_fd, "HTTP/1.1 501\r\n\r\n");
+                    }
+                } else {
+                    socket_send(&in_fd, "HTTP/1.1 400\r\n\r\n");
+                }
 
             } else if (errno == ENOTCONN) { // TODO: Does this really work..?
                 connection_is_alive = 0;
