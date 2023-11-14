@@ -87,10 +87,25 @@ int webserver_tick(webserver *ws) {
                 char* URL_copy;
                 if (headersValid(buf, URL_copy) == 1) {
                     if (strncmp(buf, "GET", 3) == 0) {
-                        socket_send(&in_fd, "HTTP/1.1 404\r\n\r\n");
+
+                        size_t URL_len = strlen(URL_copy);
+                        if (strcmp(&URL_copy[URL_len - 3], "foo") == 0) {
+                            socket_send(&in_fd, "Foo\r\n\r\n");
+
+                        } else if (strcmp(&URL_copy[URL_len - 3], "bar") == 0){
+                            socket_send(&in_fd, "Bar\r\n\r\n");
+
+                        } else if (strcmp(&URL_copy[URL_len - 3], "baz") == 0) {
+                            socket_send(&in_fd, "Baz\r\n\r\n");
+
+                        } else {
+                            socket_send(&in_fd, "HTTP/1.1 404\r\n\r\n");
+                        }
+                        /*
+                        //printf("%s", URL_copy);
 
                         char *token = strtok(URL_copy, "/");
-
+                        //printf("%s",token);
                         //Task 2.6 but doesnt work yet
                         while (token != NULL) {
                             token = strtok(NULL, "/");
@@ -105,7 +120,7 @@ int webserver_tick(webserver *ws) {
                         if (strcmp(token, "baz") == 0) {
                             socket_send(&in_fd, "Baz\r\n\r\n");
                         }
-
+                        */
                     } else {
                         socket_send(&in_fd, "HTTP/1.1 501\r\n\r\n");
                     }
