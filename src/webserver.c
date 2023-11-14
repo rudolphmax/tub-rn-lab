@@ -26,7 +26,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
-int headersValid(char* buf) {
+int headersValid(char* buf, char* URL_copy) {
     int endline_index = strstr(buf, "\r\n") - buf;
     char* header_line = calloc(endline_index, sizeof(char));
     header_line = strncpy(header_line, buf, endline_index);
@@ -41,6 +41,12 @@ int headersValid(char* buf) {
         // naechsten Abschnitt erstellen
         ptr = strtok(NULL, delimiter);
 
+        if (header_field_num == 1) {
+            URL_copy = calloc(strlen(ptr) + 1, sizeof(char));
+            URL_copy = strncpy(URL_copy, ptr, strlen(ptr) + 1);
+
+
+        }
         header_field_num++;
     }
 
@@ -77,9 +83,29 @@ int webserver_tick(webserver *ws) {
             char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
 
             if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
-                if (headersValid(buf) == 1) {
+
+                char* URL_copy;
+                if (headersValid(buf, URL_copy) == 1) {
                     if (strncmp(buf, "GET", 3) == 0) {
                         socket_send(&in_fd, "HTTP/1.1 404\r\n\r\n");
+
+                        char *token = strtok(URL_copy, "/");
+
+                        //Task 2.6 but doesnt work yet
+                        while (token != NULL) {
+                            token = strtok(NULL, "/");
+                        }
+
+                        if (strcmp(token, "foo") == 0) {
+                            socket_send(&in_fd, "Foo\r\n\r\n");
+                        }
+                        if (strcmp(token, "bar") == 0) {
+                            socket_send(&in_fd, "Bar\r\n\r\n");
+                        }
+                        if (strcmp(token, "baz") == 0) {
+                            socket_send(&in_fd, "Baz\r\n\r\n");
+                        }
+
                     } else {
                         socket_send(&in_fd, "HTTP/1.1 501\r\n\r\n");
                     }
