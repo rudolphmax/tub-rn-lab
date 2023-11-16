@@ -78,11 +78,13 @@ int webserver_tick(webserver *ws) {
             continue;
         }
 
+        int receive_attempts_left = RECEIVE_ATTEMPTS;
         int connection_is_alive = 1;
         while (connection_is_alive) {
             char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
 
             if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
+                receive_attempts_left = RECEIVE_ATTEMPTS;
 
                 char* URL_copy;
                 if (headersValid(buf, URL_copy) == 1) {
@@ -128,7 +130,7 @@ int webserver_tick(webserver *ws) {
                     socket_send(&in_fd, "HTTP/1.1 400\r\n\r\n");
                 }
 
-            } else if (errno == ENOTCONN) { // TODO: Does this really work..?
+            } else if (errno == ECONNRESET || errno == EINTR || errno == ETIMEDOUT) {
                 connection_is_alive = 0;
 
                 if (socket_shutdown(ws, &in_fd) != 0) {
@@ -136,6 +138,9 @@ int webserver_tick(webserver *ws) {
                     return -1;
                 }
             } else {
+                receive_attempts_left--;
+                if (receive_attempts_left == 0) connection_is_alive = 0;
+
                 perror("Socket couldn't read package.");
             }
         }

@@ -70,7 +70,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
                     );
         printf("Received %d bytes.\n", n_bytes);
 
-        if (n_bytes == -1) return -1;
+        if (n_bytes == -1 || n_bytes == 0) return -1;
         else bytes_received += n_bytes;
     }
 
