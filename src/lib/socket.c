@@ -41,6 +41,7 @@ int socket_listen(webserver *ws) {
 
 int socket_send(int* sockfd, char* message) {
     unsigned long len = strlen(message);
+    debug_printv("Sending message:", message);
     long bytes_sent = send(*sockfd, message, len, 0);
 
     // TODO: bytes_sent < len -> send the rest as well

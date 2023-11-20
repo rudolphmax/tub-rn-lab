@@ -5,6 +5,10 @@ void debug_print(char* message) {
     printf("DEBUG: %s\n", message);
 }
 
+void debug_printv(char* message, char* value) {
+    printf("DEBUG: %s %s\n", message, value);
+}
+
 int str_is_uint16(const char *str) {
     char *end;
     errno = 0;

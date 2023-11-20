@@ -30,12 +30,10 @@ int parse_header(char* req_string, char* URL_copy, request *req) {
     int endline_index = strstr(req_string, "\r\n") - req_string;
     char* header_line = calloc(endline_index, sizeof(char));
     header_line = strncpy(header_line, req_string, endline_index);
+    debug_printv("Header line:", header_line);
 
     char *delimiter = " ";
     char *ptr = strtok(header_line, delimiter);
-
-    debug_print("Header line:");
-    printf("%s\n", header_line);
 
     int header_field_num = 0;
     while(ptr != NULL) {
@@ -59,12 +57,11 @@ int parse_header(char* req_string, char* URL_copy, request *req) {
         // TODO: This assumes len(ptr)+1 fits the field
         strncpy(cpy_dest, ptr, strlen(ptr) + 1);
 
-        header_field_num++;
         // Get next slice
         ptr = strtok(NULL, delimiter);
+        header_field_num++;
     }
 
-    // printf("\n");
     free(header_line);
 
     if (header_field_num != 3) return -1;
@@ -106,10 +103,11 @@ int webserver_tick(webserver *ws) {
                 }
 
                 response *res = response_create(0, NULL, NULL, NULL);
-                strcpy(res->header->fields[0].name, "Content-Length");
-                strcpy(res->header->fields[0].value, "0");
+                // FIXME: This header field causes test 2.5 (test_reply) to fail
+                // strcpy(res->header->fields[0].name, "Content-Length");
+                // strcpy(res->header->fields[0].value, "0");
 
-                if (header_parse(buf, req) == 0) {
+                if (parse_header(buf, req) == 0) {
                     strcpy(res->header->protocol, req->header->protocol); // using the same protocol as the request
 
                     if (strncmp(req->header->method, "GET", 3) == 0) {
