@@ -130,7 +130,26 @@ int webserver_tick(webserver *ws) {
 
                         } else res->header->status_code = 404;
 
-                    } else res->header->status_code = 501;
+                    } else if (strncmp(req->header->method, "PUT", 3) == 0) {
+
+                        if (strncmp(req->header->URI, "dynamic", 7) != 0) {
+                            res->header->status_code = 403;
+                            strcpy(res->header->status_message, "Forbidden");
+                        } else if {
+
+                        }
+
+                    } else if (strncmp(req->header->method, "DELETE", 3) == 0) {
+
+                        if (strncmp(req->header->URI, "dynamic", 7) != 0) {
+                            res->header->status_code = 403;
+                            strcpy(res->header->status_message, "Forbidden");
+                        } else {
+
+                        }
+                    } else {
+                        res->header->status_code = 501;
+                    }
 
                 } else res->header->status_code = 400;
 
