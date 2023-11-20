@@ -26,6 +26,9 @@ int socket_listen(webserver *ws) {
     int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sockfd < 0) return -1;
 
+    int option = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+
     if (bind(sockfd, res->ai_addr, res->ai_addrlen) < 0) return -1;
     // TODO: Which BACKLOG_COUNT to use? As, currently, only one connection is accepted
     listen(sockfd, BACKLOG_COUNT);
