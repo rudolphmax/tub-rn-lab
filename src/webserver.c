@@ -26,39 +26,50 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
-int parse_header(char* buf, char* URL_copy) {
-    int endline_index = strstr(buf, "\r\n") - buf;
+int parse_header(char* req_string, char* URL_copy, request *req) {
+    int endline_index = strstr(req_string, "\r\n") - req_string;
     char* header_line = calloc(endline_index, sizeof(char));
-    header_line = strncpy(header_line, buf, endline_index);
+    header_line = strncpy(header_line, req_string, endline_index);
 
     char *delimiter = " ";
     char *ptr = strtok(header_line, delimiter);
-    int header_field_num = 0;
 
     debug_print("Header line:");
-    printf("%s", header_line);
+    printf("%s\n", header_line);
 
+    int header_field_num = 0;
     while(ptr != NULL) {
-        // printf("%s", ptr);
+        // printf("%s ", ptr);
 
-        if (header_field_num == 1) {
-            // Instead allocated in webserver_tick
-            // URL_copy = calloc(strlen(ptr) + 1, sizeof(char));
-            URL_copy = strncpy(URL_copy, ptr, strlen(ptr) + 1);
+        char *cpy_dest = NULL;
+        switch (header_field_num) {
+            case 0:
+                cpy_dest = req->header->method;
+                break;
+
+            case 1:
+                cpy_dest = req->header->URI;
+                break;
+
+            case 2:
+                cpy_dest = req->header->protocol;
+                break;
         }
 
-        // naechsten Abschnitt erstellen
-        ptr = strtok(NULL, delimiter);
+        // TODO: This assumes len(ptr)+1 fits the field
+        strncpy(cpy_dest, ptr, strlen(ptr) + 1);
+
         header_field_num++;
+        // Get next slice
+        ptr = strtok(NULL, delimiter);
     }
 
     // printf("\n");
     free(header_line);
 
-    if (header_field_num != 3) {
-        return 0;
-    }
-    return 1;
+    if (header_field_num != 3) return -1;
+
+    return 0;
 }
 
 int webserver_tick(webserver *ws) {
@@ -88,54 +99,47 @@ int webserver_tick(webserver *ws) {
             if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
                 receive_attempts_left = RECEIVE_ATTEMPTS;
 
-                char* URL_copy = calloc(strlen(buf), sizeof(char));
-                // strlen(buf) so its not static
-
-                if (parse_header(buf, URL_copy) == 1) {
-                    if (strncmp(buf, "GET", 3) == 0) {
-
-                        size_t URL_len = strlen(URL_copy);
-                        if (strcmp(&URL_copy[URL_len - 3], "foo") == 0) {
-                            socket_send(&in_fd, "Foo");
-                            // socket_send(&in_fd, "HTTP/1.1 200\r\nFoo\r\n\r\n");
-
-                        } else if (strcmp(&URL_copy[URL_len - 3], "bar") == 0){
-                            socket_send(&in_fd, "Bar");
-                            // socket_send(&in_fd, "HTTP/1.1 200\r\nBar\r\n\r\n");
-
-                        } else if (strcmp(&URL_copy[URL_len - 3], "baz") == 0) {
-                            socket_send(&in_fd, "Baz");
-                            // socket_send(&in_fd, "HTTP/1.1 200\r\nBaz\r\n\r\n");
-
-                        } else {
-                            socket_send(&in_fd, "HTTP/1.1 404\r\n\r\n");
-                        }
-                        /*
-                        //printf("%s", URL_copy);
-
-                        char *token = strtok(URL_copy, "/");
-                        //printf("%s",token);
-                        //Task 2.6 but doesnt work yet
-                        while (token != NULL) {
-                            token = strtok(NULL, "/");
-                        }
-
-                        if (strcmp(token, "foo") == 0) {
-                            socket_send(&in_fd, "Foo\r\n\r\n");
-                        }
-                        if (strcmp(token, "bar") == 0) {
-                            socket_send(&in_fd, "Bar\r\n\r\n");
-                        }
-                        if (strcmp(token, "baz") == 0) {
-                            socket_send(&in_fd, "Baz\r\n\r\n");
-                        }
-                        */
-                    } else {
-                        socket_send(&in_fd, "HTTP/1.1 501\r\n\r\n");
-                    }
-                } else {
-                    socket_send(&in_fd, "HTTP/1.1 400\r\n\r\n");
+                request *req;
+                req = request_create();
+                if (req == NULL) {
+                    perror("Error initializing request structure");
                 }
+
+                response *res = response_create(0, NULL, NULL, NULL);
+                strcpy(res->header->fields[0].name, "Content-Length");
+                strcpy(res->header->fields[0].value, "0");
+
+                if (header_parse(buf, req) == 0) {
+                    strcpy(res->header->protocol, req->header->protocol); // using the same protocol as the request
+
+                    if (strncmp(req->header->method, "GET", 3) == 0) {
+
+                        if (strcmp(req->header->URI, "static/foo") == 0) {
+                            res->header->status_code = 200;
+                            strcpy(res->header->status_message, "Ok");
+                            strcpy(res->body, "Foo");
+
+                        } else if (strcmp(req->header->URI, "static/bar") == 0){
+                            res->header->status_code = 200;
+                            strcpy(res->header->status_message, "Ok");
+                            strcpy(res->body, "Bar");
+
+                        } else if (strcmp(req->header->URI, "static/baz") == 0) {
+                            res->header->status_code = 200;
+                            strcpy(res->header->status_message, "Ok");
+                            strcpy(res->body, "Baz");
+
+                        } else res->header->status_code = 404;
+
+                    } else res->header->status_code = 501;
+
+                } else res->header->status_code = 400;
+
+                request_free(req);
+
+                char *res_msg = response_stringify(res);
+                socket_send(&in_fd, res_msg);
+                response_free(res);
 
             } else if (errno == ECONNRESET || errno == EINTR || errno == ETIMEDOUT) {
                 connection_is_alive = 0;
