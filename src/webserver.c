@@ -135,8 +135,8 @@ int webserver_tick(webserver *ws) {
                         if (strncmp(req->header->URI, "dynamic", 7) != 0) {
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
-                        } else if {
-
+                        } else {
+                            int blabla;
                         }
 
                     } else if (strncmp(req->header->method, "DELETE", 3) == 0) {
@@ -145,7 +145,7 @@ int webserver_tick(webserver *ws) {
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
                         } else {
-
+                            int bla;
                         }
                     } else {
                         res->header->status_code = 501;
