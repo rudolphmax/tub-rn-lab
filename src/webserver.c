@@ -26,7 +26,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
-int headersValid(char* buf, char* URL_copy) {
+int parse_header(char* buf, char* URL_copy) {
     int endline_index = strstr(buf, "\r\n") - buf;
     char* header_line = calloc(endline_index, sizeof(char));
     header_line = strncpy(header_line, buf, endline_index);
@@ -35,18 +35,20 @@ int headersValid(char* buf, char* URL_copy) {
     char *ptr = strtok(header_line, delimiter);
     int header_field_num = 0;
 
-    // debug_print("Header line:");
+    debug_print("Header line:");
+    printf("%s", header_line);
+
     while(ptr != NULL) {
-        // printf("%s ", ptr);
-        // naechsten Abschnitt erstellen
-        ptr = strtok(NULL, delimiter);
+        // printf("%s", ptr);
 
         if (header_field_num == 1) {
-            URL_copy = calloc(strlen(ptr) + 1, sizeof(char));
+            // Instead allocated in webserver_tick
+            // URL_copy = calloc(strlen(ptr) + 1, sizeof(char));
             URL_copy = strncpy(URL_copy, ptr, strlen(ptr) + 1);
-
-
         }
+
+        // naechsten Abschnitt erstellen
+        ptr = strtok(NULL, delimiter);
         header_field_num++;
     }
 
@@ -86,19 +88,24 @@ int webserver_tick(webserver *ws) {
             if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
                 receive_attempts_left = RECEIVE_ATTEMPTS;
 
-                char* URL_copy;
-                if (headersValid(buf, URL_copy) == 1) {
+                char* URL_copy = calloc(strlen(buf), sizeof(char));
+                // strlen(buf) so its not static
+
+                if (parse_header(buf, URL_copy) == 1) {
                     if (strncmp(buf, "GET", 3) == 0) {
 
                         size_t URL_len = strlen(URL_copy);
                         if (strcmp(&URL_copy[URL_len - 3], "foo") == 0) {
-                            socket_send(&in_fd, "Foo\r\n\r\n");
+                            socket_send(&in_fd, "Foo");
+                            // socket_send(&in_fd, "HTTP/1.1 200\r\nFoo\r\n\r\n");
 
                         } else if (strcmp(&URL_copy[URL_len - 3], "bar") == 0){
-                            socket_send(&in_fd, "Bar\r\n\r\n");
+                            socket_send(&in_fd, "Bar");
+                            // socket_send(&in_fd, "HTTP/1.1 200\r\nBar\r\n\r\n");
 
                         } else if (strcmp(&URL_copy[URL_len - 3], "baz") == 0) {
-                            socket_send(&in_fd, "Baz\r\n\r\n");
+                            socket_send(&in_fd, "Baz");
+                            // socket_send(&in_fd, "HTTP/1.1 200\r\nBaz\r\n\r\n");
 
                         } else {
                             socket_send(&in_fd, "HTTP/1.1 404\r\n\r\n");
