@@ -26,7 +26,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
-int parse_header(char* req_string, char* URL_copy, request *req) {
+int parse_header(char* req_string, request *req) {
     int endline_index = strstr(req_string, "\r\n") - req_string;
     char* header_line = calloc(endline_index, sizeof(char));
     header_line = strncpy(header_line, req_string, endline_index);
