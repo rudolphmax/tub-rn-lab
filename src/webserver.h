@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "lib/utils.h"
+#include "lib/message.h"
 
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
 #define EXPECTED_NUMBER_OF_PARAMS 2
@@ -27,6 +28,14 @@ struct {
  * @return A webserver object on success, NULL on error.
  */
 webserver* webserver_init(char* hostname, char* port_str);
+
+/**
+ * Validates the HTTP request header and fills a request object.
+ * @param req_string request in string form as it came from the stream
+ * @param req request object to be filled
+ * @return 0 on success, -1 on error.
+ */
+int header_parse(char* req_string, request *req);
 
 /**
  * Executes one lifetime-tick of the given webserver

@@ -16,4 +16,6 @@ add_executable(webserver src/webserver.c
         src/lib/socket.h
         src/lib/utils.c
         src/lib/utils.h
+        src/lib/message.c
+        src/lib/message.h
 )
