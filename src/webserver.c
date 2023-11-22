@@ -111,7 +111,7 @@ int webserver_tick(webserver *ws) {
                 // strcpy(res->header->fields[0].value, "0");
 
                 if (parse_header(buf, req) == 0) {
-                    strcpy(res->header->protocol, req->header->protocol); // using the same protocol as the request
+                    strncpy(res->header->protocol, req->header->protocol, strlen(req->header->protocol)); // using the same protocol as the request
 
                     if (strncmp(req->header->method, "GET", 3) == 0) {
 
@@ -176,6 +176,7 @@ int webserver_tick(webserver *ws) {
             }
         }
     }
+    return 0;
 }
 
 void webserver_print(webserver *ws) {
