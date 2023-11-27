@@ -6,6 +6,8 @@
 #include <string.h>
 #include "lib/utils.h"
 #include "lib/message.h"
+#include "lib/filesystem/filesystem.h"
+#include "lib/filesystem/operations.h"
 
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
 #define EXPECTED_NUMBER_OF_PARAMS 2
@@ -42,7 +44,7 @@ int header_parse(char* req_string, request *req);
  * @param ws the webserver to tickle.
  * @return 0 on success, -1 on error
  */
-int webserver_tick(webserver *ws);
+int webserver_tick(webserver *ws, file_system *fs);
 
 /**
  * Prints relevant information on the webserver-object to the console.

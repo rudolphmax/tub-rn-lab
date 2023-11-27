@@ -71,7 +71,7 @@ int parse_header(char* req_string, request *req) {
     return 0;
 }
 
-int webserver_tick(webserver *ws) {
+int webserver_tick(webserver *ws, file_system *fs) {
     // TODO: Multithread with fork to accept multiple simultaneous connections
 
     // Deciding what to do for each open socket - are they listening or not?
@@ -112,25 +112,25 @@ int webserver_tick(webserver *ws) {
                 if (parse_header(buf, req) == 0) {
                     if (strncmp(req->header->method, "GET", 3) == 0) {
 
-                        if (strcmp(req->header->URI, "/static/foo") == 0) {
+                        // validating request URI against filesystem
+                        target_node *tnode = fs_find_target(fs, req->header->URI);
+
+                        // the target (.../.../foo) exists
+                        if (tnode == NULL) {
+                            res->header->status_code = 404;
+                        } else {
                             res->header->status_code = 200;
                             strcpy(res->header->status_message, "Ok");
-                            strcpy(res->body, "Foo");
 
-                        } else if (strcmp(req->header->URI, "/static/bar") == 0){
-                            res->header->status_code = 200;
-                            strcpy(res->header->status_message, "Ok");
-                            strcpy(res->body, "Bar");
-
-                        } else if (strcmp(req->header->URI, "/static/baz") == 0) {
-                            res->header->status_code = 200;
-                            strcpy(res->header->status_message, "Ok");
-                            strcpy(res->body, "Baz");
-
-                        } else res->header->status_code = 404;
+                            int file_size = 0;
+                            uint8_t *file_contents = fs_readf(fs, req->header->URI, &file_size);
+                            strcpy(res->body, file_contents);
+                        }
 
                     } else if (strncmp(req->header->method, "PUT", 3) == 0) {
 
+                        // TODO: determine if file exists, overwrite, else create one
+                        // use: fs_mkfile
                         if (strncmp(req->header->URI, "dynamic", 7) != 0) {
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
@@ -140,6 +140,8 @@ int webserver_tick(webserver *ws) {
 
                     } else if (strncmp(req->header->method, "DELETE", 3) == 0) {
 
+                        // TODO: Remove file / directory if it exists
+                        // use: fs_rm
                         if (strncmp(req->header->URI, "dynamic", 7) != 0) {
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
@@ -200,6 +202,19 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+    // TODO: Refactor this into a function
+    // initializing underlying filesystem
+    file_system *fs = fs_create(10); // TODO: Which size to choose?
+    fs_mkdir(fs, "/static");
+    fs_mkdir(fs, "/dynamic");
+    fs_mkfile(fs, "/static/foo");
+    fs_writef(fs, "/static/foo", "Foo");
+    fs_mkfile(fs, "/static/bar");
+    fs_writef(fs, "/static/bar", "Bar");
+    fs_mkfile(fs, "/static/baz");
+    fs_writef(fs, "/static/baz", "Baz");
+
+    // initializing webserver
     webserver *ws = webserver_init(argv[1], argv[2]);
     if (!ws) {
         perror("Initialization of the webserver failed.");
@@ -213,7 +228,7 @@ int main(int argc, char **argv) {
 
     int quit = 0;
     while(!quit) {
-        if (webserver_tick(ws) != 0) quit = 1;
+        if (webserver_tick(ws, fs) != 0) quit = 1;
     }
 
     for (int i = 0; i < ws->num_open_sockets; i++) {
@@ -222,6 +237,7 @@ int main(int argc, char **argv) {
     }
 
     webserver_free(ws);
+    fs_free(fs);
 
     return 0;
 }
