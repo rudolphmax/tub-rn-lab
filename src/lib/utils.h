@@ -5,6 +5,10 @@
 #include <sys/errno.h>
 #include <string.h>
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
+
 /**
  * Prints a given debug message to the console.
  * @param message the message to be printed

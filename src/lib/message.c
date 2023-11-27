@@ -1,18 +1,32 @@
 #include "message.h"
 
-// TODO: Make this initializable
-request* request_create() {
-    // TODO: Abstract this
+request* request_create(char *method, char *URI, char *body) {
     request_header *req_header = calloc(1, sizeof(request_header));
-    req_header->method = calloc(9, sizeof(char));
+    req_header->method = calloc(HEADER_SPECS_LENGTH, sizeof(char));
+    if (method != NULL) {
+        strcpy(req_header->method, MIN(method, HEADER_SPECS_LENGTH-1));
+    }
+
     req_header->URI = calloc(HEADER_URI_LENGTH, sizeof(char));
-    req_header->protocol = calloc(9, sizeof(char));
-    req_header->num_fields = 10; // TODO: Abstract this into def
+    if (URI != NULL) {
+        strcpy(req_header->URI, MIN(URI, HEADER_URI_LENGTH-1));
+    }
+
+    req_header->protocol = calloc(HEADER_SPECS_LENGTH, sizeof(char));
+    strcpy(req_header->protocol, "HTTP/1.1");
+
+    req_header->num_fields = 10;
     req_header->fields = calloc(req_header->num_fields, sizeof(header_field));
 
     request *req = calloc(1, sizeof(request));
     req->header = req_header;
-    req->body = calloc(BODY_INITIAL_SIZE, sizeof(char));
+
+    if (body != NULL) {
+        req->body = calloc(strlen(body) + 1, sizeof(char));
+        strncpy(req->body, body, strlen(body));
+    } else {
+        req->body = calloc(BODY_INITIAL_SIZE, sizeof(char));
+    }
 
     return req;
 }
@@ -28,9 +42,9 @@ void request_free(request *req) {
 }
 
 response *response_create(int status_code, char *status_message, char *protocol, char *body) {
-
     response_header *res_header = calloc(1, sizeof(response_header));
-    res_header->protocol = calloc(9, sizeof(char));
+
+    res_header->protocol = calloc(HEADER_SPECS_LENGTH, sizeof(char));
     if (protocol == NULL) {
         strcpy(res_header->protocol, "HTTP/1.0");
     } else {
@@ -46,7 +60,7 @@ response *response_create(int status_code, char *status_message, char *protocol,
         strcpy(res_header->status_message, status_message);
     }
 
-    res_header->num_fields = 10; // TODO: Abstract this into def
+    res_header->num_fields = 10;
     res_header->fields = calloc(res_header->num_fields, sizeof(header_field));
 
     request *res = calloc(1, sizeof(response));
@@ -54,7 +68,7 @@ response *response_create(int status_code, char *status_message, char *protocol,
 
     if (body != NULL) {
         res->body = calloc(strlen(body) + 1, sizeof(char));
-        strcpy(res->body, body);
+        strncpy(res->body, body, strlen(body));
     } else {
         res->body = calloc(BODY_INITIAL_SIZE, sizeof(char));
     }
@@ -62,26 +76,32 @@ response *response_create(int status_code, char *status_message, char *protocol,
     return res;
 }
 
-int response_add_header_field(response *res, char *name, char *value) {
-    for (int i = 0; i < res->header->num_fields; i++) {
-        if (strlen(res->header->fields[i].name) != 0) continue;
+int add_header_field(void *ptr, char *name, char *value) {
+    request *http_msg = ptr;
 
-        // TODO: ensure len(name) <= len(fields[i].name)
-        strncpy(res->header->fields[i].name, name, strlen(name));
-        strncpy(res->header->fields[i].value, value, strlen(value));
+    if (strlen(name) > HEADER_FIELD_NAME_LENGTH || strlen(value) > HEADER_FIELD_VALUE_LENGTH) {
+        perror("Header field name or value too long.");
+        return -1;
+    }
+
+    for (int i = 0; i < http_msg->header->num_fields; i++) {
+        if (strlen(http_msg->header->fields[i].name) != 0) continue;
+
+        strncpy(http_msg->header->fields[i].name, name, MIN(strlen(name), HEADER_FIELD_NAME_LENGTH-1));
+        strncpy(http_msg->header->fields[i].value, value, MIN(strlen(value), HEADER_FIELD_VALUE_LENGTH-1));
         return 0;
     }
 
     // No empty field exists, so realloc ->fields and use a new one
-    int i = res->header->num_fields + 1;
+    int i = http_msg->header->num_fields + 1;
 
-    res->header->fields = realloc(res->header->fields, (res->header->num_fields*2) * sizeof(header_field));
-    if (res->header->fields == NULL) return -1;
+    http_msg->header->fields = realloc(http_msg->header->fields, (http_msg->header->num_fields * 2) * sizeof(header_field));
+    if (http_msg->header->fields == NULL) return -1;
 
-    res->header->num_fields *= 2; // increase num_fields if realloc was successful
+    http_msg->header->num_fields *= 2; // increase num_fields if realloc was successful
 
-    strncpy(res->header->fields[i].name, name, strlen(name));
-    strncpy(res->header->fields[i].value, value, strlen(value));
+    strncpy(http_msg->header->fields[i].name, name, MIN(strlen(name), HEADER_FIELD_NAME_LENGTH-1));
+    strncpy(http_msg->header->fields[i].value, value, MIN(strlen(value), HEADER_FIELD_VALUE_LENGTH-1));
     return 0;
 }
 
@@ -93,10 +113,14 @@ int response_bytesize(response *res) {
     size += strlen(res->header->status_message) + 2; // +2 for \r\n
 
     if (strlen(res->body) > 0) {
-        // TODO: check for body size o_o (max 11 digits)
+        if (strlen(res->body) > 99999999999) {
+            perror("Body too large.");
+            return -1;
+        }
+
         char *body_bytesize_str = calloc(12, sizeof(char));
         snprintf(body_bytesize_str, 12, "%d", strlen(res->body));
-        response_add_header_field(res, "Content-Length", body_bytesize_str);
+        add_header_field(res, "Content-Length", body_bytesize_str);
     }
 
     for (int i = 0; i < res->header->num_fields; i++) {
@@ -148,7 +172,10 @@ char* response_stringify(response *res) {
     }
 
     strcat(res_str, "\r\n");
-    strcat(res_str, res->body);
+
+    if (strlen(res->body) > 0) {
+        strcat(res_str, res->body);
+    }
 
     return res_str;
 }

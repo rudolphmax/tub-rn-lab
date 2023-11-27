@@ -17,7 +17,7 @@ int socket_listen(webserver *ws) {
     struct addrinfo hints, *res;
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET; // TODO: Upgrade to IPv6 ?
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
@@ -30,7 +30,6 @@ int socket_listen(webserver *ws) {
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
     if (bind(sockfd, res->ai_addr, res->ai_addrlen) < 0) return -1;
-    // TODO: Which BACKLOG_COUNT to use? As, currently, only one connection is accepted
     listen(sockfd, BACKLOG_COUNT);
 
     ws->open_sockets[ws->num_open_sockets] = sockfd;
@@ -42,10 +41,13 @@ int socket_listen(webserver *ws) {
 int socket_send(int* sockfd, char* message) {
     unsigned long len = strlen(message);
     debug_printv("Sending message:", message);
-    long bytes_sent = send(*sockfd, message, len, 0);
 
-    // TODO: bytes_sent < len -> send the rest as well
-    if (bytes_sent < 0 ) return -1;
+    long bytes_sent = 0;
+    while (bytes_sent < len) {
+        bytes_sent += send(*sockfd, message + bytes_sent, len - bytes_sent, 0);
+        if (bytes_sent < 0) return -1;
+    }
+
     return 0;
 }
 
@@ -55,7 +57,6 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
 
     // Receiving until buffer ends with CLRF (except last byte which is \0)
     while (string_ends_with_empty_line(buf) != 0) {
-        // TODO: This might discard the first packet if two are read consecutively
         if (bytes_received >= bufsize - 1) {
             perror("Buffer full before entire package read.");
             return -1;

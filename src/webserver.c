@@ -44,6 +44,7 @@ int parse_header(char* req_string, request *req) {
         // printf("%s ", ptr);
 
         char *cpy_dest = NULL;
+        int field_max_length = HEADER_SPECS_LENGTH;
         switch (header_field_num) {
             case 0:
                 cpy_dest = req->header->method;
@@ -51,6 +52,7 @@ int parse_header(char* req_string, request *req) {
 
             case 1:
                 cpy_dest = req->header->URI;
+                field_max_length = HEADER_URI_LENGTH;
                 break;
 
             case 2:
@@ -58,8 +60,7 @@ int parse_header(char* req_string, request *req) {
                 break;
         }
 
-        // TODO: This assumes len(ptr)+1 fits the field
-        strncpy(cpy_dest, ptr, strlen(ptr) + 1);
+        strncpy(cpy_dest, ptr, MIN(strlen(ptr), field_max_length-1));
 
         // Get next slice
         ptr = strtok(NULL, delimiter);
@@ -88,7 +89,7 @@ int webserver_tick(webserver *ws) {
                 continue;
             }
             // else: accept failed because socket is unwilling to listen.
-            // TODO: Handle non-listening sockets
+            // Handle non-listening sockets here
             continue;
         }
 
@@ -101,15 +102,15 @@ int webserver_tick(webserver *ws) {
                 receive_attempts_left = RECEIVE_ATTEMPTS;
 
                 request *req;
-                req = request_create();
+                req = request_create(NULL, NULL, NULL);
                 if (req == NULL) {
                     perror("Error initializing request structure");
                 }
 
                 response *res = response_create(0, NULL, NULL, NULL);
-                // FIXME: This header field causes test 2.5 (test_reply) to fail
-                // strcpy(res->header->fields[0].name, "Content-Length");
-                // strcpy(res->header->fields[0].value, "0");
+                if (res == NULL) {
+                    perror("Error initializing response structure");
+                }
 
                 if (parse_header(buf, req) == 0) {
                     if (strncmp(req->header->method, "GET", 3) == 0) {

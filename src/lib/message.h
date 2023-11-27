@@ -4,11 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "./utils.h"
 
 #define HEADER_FIELD_MAX_COUNT 100
 #define HEADER_FIELD_NAME_LENGTH 128
 #define HEADER_FIELD_VALUE_LENGTH 1024
 #define HEADER_URI_LENGTH 2048
+#define HEADER_SPECS_LENGTH 9 // Lengths of technical specs in the req/response header (protocol & method)
 #define BODY_INITIAL_SIZE 1024
 
 /*
@@ -55,9 +57,12 @@ struct response {
 
 /**
  * Creates a new empty request.
+ * @param method the request method (e.g.: GET)
+ * @param URI the request URI (e.g.: /static/foo)
+ * @param body the request body (e.g.: Hello World!)
  * @return the request object. NULL on error.
  */
-request* request_create();
+request* request_create(char *method, char *URI, char *body);
 
 /**
  * Frees the given request object.
@@ -80,12 +85,12 @@ int response_bytesize(response *res);
 
 /**
  * Adds a header field to the given response object.
- * @param res the response object to be modified.
+ * @param http_msg the response object to be modified.
  * @param name the name of the header field (e.g.: Content-Length)
  * @param value the value of the header field (e.g.: 123)
  * @return 0 on success, -1 on error.
  */
-int response_add_header_field(response *res, char *name, char *value);
+int add_header_field(void *http_msg, char *name, char *value);
 
 /**
  * Converts the given response object into a string.
