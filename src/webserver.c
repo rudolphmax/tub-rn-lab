@@ -114,17 +114,17 @@ int webserver_tick(webserver *ws) {
                 if (parse_header(buf, req) == 0) {
                     if (strncmp(req->header->method, "GET", 3) == 0) {
 
-                        if (strcmp(req->header->URI, "static/foo") == 0) {
+                        if (strcmp(req->header->URI, "/static/foo") == 0) {
                             res->header->status_code = 200;
                             strcpy(res->header->status_message, "Ok");
                             strcpy(res->body, "Foo");
 
-                        } else if (strcmp(req->header->URI, "static/bar") == 0){
+                        } else if (strcmp(req->header->URI, "/static/bar") == 0){
                             res->header->status_code = 200;
                             strcpy(res->header->status_message, "Ok");
                             strcpy(res->body, "Bar");
 
-                        } else if (strcmp(req->header->URI, "static/baz") == 0) {
+                        } else if (strcmp(req->header->URI, "/static/baz") == 0) {
                             res->header->status_code = 200;
                             strcpy(res->header->status_message, "Ok");
                             strcpy(res->body, "Baz");
