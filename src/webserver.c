@@ -8,8 +8,10 @@ webserver* webserver_init(char* hostname, char* port_str) {
     webserver *ws = calloc(1, sizeof(webserver));
     if (!ws) return NULL;
 
+    int port_str_len = strlen(port_str)+1; // +1 for \0
+
     ws->HOST = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
-    ws->PORT = calloc(1, sizeof(uint16_t));
+    ws->PORT = calloc(port_str_len, sizeof(char));
     ws->open_sockets = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(int));
     ws->num_open_sockets = 0;
 
@@ -23,7 +25,6 @@ webserver* webserver_init(char* hostname, char* port_str) {
         perror("Invalid port.");
         return NULL;
     }
-    int port_str_len = strlen(port_str)+1; // +1 for \0
     memcpy(ws->PORT, port_str, port_str_len * sizeof(char));
 
     return ws;
@@ -31,9 +32,10 @@ webserver* webserver_init(char* hostname, char* port_str) {
 
 int parse_header(char* req_string, request *req) {
     int endline_index = strstr(req_string, "\r\n") - req_string;
-    char* header_line = calloc(endline_index, sizeof(char));
+    char* header_line = calloc(endline_index + 1, sizeof(char)); // + 1 for '\0'
     header_line = strncpy(header_line, req_string, endline_index);
     debug_printv("Header line:", header_line);
+
 
     char *delimiter = " ";
     char *ptr = strtok(header_line, delimiter);

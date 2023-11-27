@@ -79,6 +79,10 @@ int response_bytesize(response *res) {
     size += 2; // \r\n
     size += strlen(res->body);
 
+    // TODO: Its missing exactly this amout of bytes (Says Valgrind). Why?
+    size += 2; // \r\n
+    size += strlen(res->body);
+
     return size;
 }
 
