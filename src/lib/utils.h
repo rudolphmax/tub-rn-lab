@@ -5,6 +5,22 @@
 #include <sys/errno.h>
 #include <string.h>
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
+
+/**
+ * Prints a given debug message to the console.
+ * @param message the message to be printed
+ */
+void debug_print(char *message);
+
+/**
+ * Prints a given debug message together with an value to the console.
+ * @param message the message to be printed
+ */
+void debug_printv(char *message, char *value);
+
 /**
  * Determines whether a given string could be interpreted as an uint16.
  * Attempts a conversion from char* to uint16_t to see if it fails. The result isn't saved.
