@@ -1,8 +1,5 @@
 #include "webserver.h"
 #include "lib/socket.h"
-#include "lib/cpath.h"  //Externe Library unter MIT Lizenz
-
-
 
 webserver* webserver_init(char* hostname, char* port_str) {
     webserver *ws = calloc(1, sizeof(webserver));
