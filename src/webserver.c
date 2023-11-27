@@ -135,7 +135,16 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
                         } else {
-                            int blabla;
+                            if (fs_find_target(fs, req->header->URI) == NULL) {
+                                fs_mkfile(fs,req->header->URI);
+                                res->header->status_code = 201;
+                                strcpy(res->header->status_message, "Created");
+                                fs_writef(fs,req->header->URI,req->body);
+                            } else {
+                                res->header->status_code = 204;
+                                strcpy(res->header->status_message, "No Content");
+                                fs_writef(fs,req->header->URI,req->body);
+                            }
                         }
 
                     } else if (strncmp(req->header->method, "DELETE", 3) == 0) {
@@ -146,7 +155,14 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
                         } else {
-                            int bla;
+                            if (fs_find_target(fs, req->header->URI) == NULL) {
+                                res->header->status_code = 404;
+                                strcpy(res->header->status_message, "Not Found");
+                            } else {
+                                res->header->status_code = 204;
+                                strcpy(res->header->status_message, "No Content");
+                                fs_rm(fs, req->header->URI);
+                            }
                         }
                     } else {
                         res->header->status_code = 501;
@@ -204,7 +220,7 @@ int main(int argc, char **argv) {
 
     // TODO: Refactor this into a function
     // initializing underlying filesystem
-    file_system *fs = fs_create(10); // TODO: Which size to choose?
+    file_system *fs = fs_create(500); // TODO: Which size to choose?
     fs_mkdir(fs, "/static");
     fs_mkdir(fs, "/dynamic");
     fs_mkfile(fs, "/static/foo");
