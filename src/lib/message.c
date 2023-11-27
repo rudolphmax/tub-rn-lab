@@ -62,12 +62,42 @@ response *response_create(int status_code, char *status_message, char *protocol,
     return res;
 }
 
+int response_add_header_field(response *res, char *name, char *value) {
+    for (int i = 0; i < res->header->num_fields; i++) {
+        if (strlen(res->header->fields[i].name) != 0) continue;
+
+        // TODO: ensure len(name) <= len(fields[i].name)
+        strncpy(res->header->fields[i].name, name, strlen(name));
+        strncpy(res->header->fields[i].value, value, strlen(value));
+        return 0;
+    }
+
+    // No empty field exists, so realloc ->fields and use a new one
+    int i = res->header->num_fields + 1;
+
+    res->header->fields = realloc(res->header->fields, (res->header->num_fields*2) * sizeof(header_field));
+    if (res->header->fields == NULL) return -1;
+
+    res->header->num_fields *= 2; // increase num_fields if realloc was successful
+
+    strncpy(res->header->fields[i].name, name, strlen(name));
+    strncpy(res->header->fields[i].value, value, strlen(value));
+    return 0;
+}
+
 int response_bytesize(response *res) {
     int size = 0;
 
     size += strlen(res->header->protocol) + 1; // +1 for space
     size += 3; // status code
     size += strlen(res->header->status_message) + 2; // +2 for \r\n
+
+    if (strlen(res->body) > 0) {
+        // TODO: check for body size o_o (max 11 digits)
+        char *body_bytesize_str = calloc(12, sizeof(char));
+        snprintf(body_bytesize_str, 12, "%d", strlen(res->body));
+        response_add_header_field(res, "Content-Length", body_bytesize_str);
+    }
 
     for (int i = 0; i < res->header->num_fields; i++) {
         if (strlen(res->header->fields[i].name) == 0) continue;
@@ -79,7 +109,7 @@ int response_bytesize(response *res) {
     size += 2; // \r\n
     size += strlen(res->body);
 
-    // TODO: Its missing exactly this amout of bytes (Says Valgrind). Why?
+    // TODO: Its missing exactly this amount of bytes (Says Valgrind). Why?
     size += 2; // \r\n
     size += strlen(res->body);
 

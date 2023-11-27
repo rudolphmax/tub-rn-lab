@@ -36,7 +36,6 @@ int parse_header(char* req_string, request *req) {
     header_line = strncpy(header_line, req_string, endline_index);
     debug_printv("Header line:", header_line);
 
-
     char *delimiter = " ";
     char *ptr = strtok(header_line, delimiter);
 
@@ -113,8 +112,6 @@ int webserver_tick(webserver *ws) {
                 // strcpy(res->header->fields[0].value, "0");
 
                 if (parse_header(buf, req) == 0) {
-                    strncpy(res->header->protocol, req->header->protocol, strlen(req->header->protocol)); // using the same protocol as the request
-
                     if (strncmp(req->header->method, "GET", 3) == 0) {
 
                         if (strcmp(req->header->URI, "static/foo") == 0) {
@@ -178,6 +175,7 @@ int webserver_tick(webserver *ws) {
             }
         }
     }
+
     return 0;
 }
 

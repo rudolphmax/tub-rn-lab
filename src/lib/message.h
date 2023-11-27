@@ -79,6 +79,15 @@ response *response_create(int status_code, char *status_message, char *protocol,
 int response_bytesize(response *res);
 
 /**
+ * Adds a header field to the given response object.
+ * @param res the response object to be modified.
+ * @param name the name of the header field (e.g.: Content-Length)
+ * @param value the value of the header field (e.g.: 123)
+ * @return 0 on success, -1 on error.
+ */
+int response_add_header_field(response *res, char *name, char *value);
+
+/**
  * Converts the given response object into a string.
  * @param res the response object to be converted.
  * @return the response string. NULL on error.
