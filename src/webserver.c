@@ -122,9 +122,14 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             res->header->status_code = 200;
                             strcpy(res->header->status_message, "Ok");
 
-                            int file_size = 0;
-                            uint8_t *file_contents = fs_readf(fs, req->header->URI, &file_size);
-                            strcpy(res->body, file_contents);
+                            inode* target_inode = &(fs->inodes[tnode->target_index]);
+
+                            if (target_inode->n_type == reg_file) { // target is a file not a directory
+                                int file_size = 0;
+                                uint8_t *file_contents = fs_readf(fs, req->header->URI, &file_size);
+
+                                if (file_size > 0) memcpy(res->body, file_contents, file_size);
+                            }
                         }
 
                     } else if (strncmp(req->header->method, "PUT", 3) == 0) {
