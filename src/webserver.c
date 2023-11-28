@@ -136,39 +136,55 @@ int webserver_tick(webserver *ws, file_system *fs) {
 
                         // TODO: determine if file exists, overwrite, else create one
                         // use: fs_mkfile
-                        if (strncmp(req->header->URI, "dynamic", 7) != 0) {
+                        if (strncmp(req->header->URI, "/dynamic", 8) != 0) { //The access IS NOT permitted
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
-                        } else {
-                            if (fs_find_target(fs, req->header->URI) == NULL) {
-                                fs_mkfile(fs,req->header->URI);
+
+                        } else {   //The access IS permitted
+
+                            int mkfile_result = fs_mkfile(fs,req->header->URI);
+
+                            if (mkfile_result == -1) {  //Failes to create a target
+                                res->header->status_code = 400;
+
+                            } else if (mkfile_result == 0) {   //Successfully creates a target
                                 res->header->status_code = 201;
                                 strcpy(res->header->status_message, "Created");
                                 fs_writef(fs,req->header->URI,req->body);
-                            } else {
+
+                            } else if (mkfile_result == -2){ //Successfully overwrites the target
                                 res->header->status_code = 204;
                                 strcpy(res->header->status_message, "No Content");
+                                fs_rm(fs, req->header->URI); //Do I remove the entire path?
+                                fs_mkfile(fs, req->header->URI);
                                 fs_writef(fs,req->header->URI,req->body);
+
+                            } else { //None of the above (could be unnecessary)
+                                res->header->status_code = 400;
                             }
                         }
 
-                    } else if (strncmp(req->header->method, "DELETE", 3) == 0) {
+                    } else if (strncmp(req->header->method, "DELETE", 6) == 0) {
 
                         // TODO: Remove file / directory if it exists
                         // use: fs_rm
-                        if (strncmp(req->header->URI, "dynamic", 7) != 0) {
+                        if (strncmp(req->header->URI, "/dynamic", 8) != 0) { //The access IS NOT permitted
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
-                        } else {
-                            if (fs_find_target(fs, req->header->URI) == NULL) {
-                                res->header->status_code = 404;
-                                strcpy(res->header->status_message, "Not Found");
-                            } else {
-                                res->header->status_code = 204;
-                                strcpy(res->header->status_message, "No Content");
-                                fs_rm(fs, req->header->URI);
-                            }
+
+                        } else if (fs_find_target(fs, req->header->URI) == NULL) { //The access is permitted, but the file doesn´t exist
+                            res->header->status_code = 404;
+                            strcpy(res->header->status_message, "Not Found");
+
+                        } else if (fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == reg_file){ //The access is permitted and the file to be deleted has the correct type
+                            res->header->status_code = 204;
+                            strcpy(res->header->status_message, "No Content");
+                            fs_rm(fs, req->header->URI);
+
+                        } else { //None of the above (is probably necessary)
+                            res->header->status_code = 400;
                         }
+
                     } else {
                         res->header->status_code = 501;
                     }
@@ -196,7 +212,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
             }
         }
     }
-
+    // TODO: Do we have to free the filesystem?
     return 0;
 }
 
