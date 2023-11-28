@@ -141,10 +141,9 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             strcpy(res->header->status_message, "Forbidden");
 
                         } else {   //The access IS permitted
-
                             int mkfile_result = fs_mkfile(fs,req->header->URI);
 
-                            if (mkfile_result == -1) {  //Failes to create a target
+                            if (mkfile_result == -1) {  //Failed to create a target
                                 res->header->status_code = 400;
 
                             } else if (mkfile_result == 0) {   //Successfully creates a target
@@ -152,14 +151,14 @@ int webserver_tick(webserver *ws, file_system *fs) {
                                 strcpy(res->header->status_message, "Created");
                                 fs_writef(fs,req->header->URI,req->body);
 
-                            } else if (mkfile_result == -2){ //Successfully overwrites the target
+                            } else if (mkfile_result == -2 && fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == reg_file){ //Successfully overwrites the target with the correct type
                                 res->header->status_code = 204;
                                 strcpy(res->header->status_message, "No Content");
                                 fs_rm(fs, req->header->URI); //Do I remove the entire path?
                                 fs_mkfile(fs, req->header->URI);
                                 fs_writef(fs,req->header->URI,req->body);
 
-                            } else { //None of the above (could be unnecessary)
+                            } else { //None of the above (probably unnecessary: Damian want's to leave it out, I want to keep it :P)
                                 res->header->status_code = 400;
                             }
                         }
