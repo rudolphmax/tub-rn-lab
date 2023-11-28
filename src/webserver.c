@@ -63,10 +63,15 @@ int parse_header(char* req_string, request *req) {
         ptr = strtok(NULL, delimiter);
         header_field_num++;
     }
-
     free(header_line);
-
     if (header_field_num != 3) return -1;
+
+    char* content_length_end_index = strstr(req_string, "Content-Length: ") + strlen("Content-Length: ");
+    char* next_newline_index = strstr(content_length_end_index, "\r\n");
+
+    int content_length = strtol(content_length_end_index, next_newline_index, 10);
+    add_header_field(req, "Content-Length", content_length);
+    // FIXME! TODO!
 
     return 0;
 }
@@ -133,9 +138,6 @@ int webserver_tick(webserver *ws, file_system *fs) {
                         }
 
                     } else if (strncmp(req->header->method, "PUT", 3) == 0) {
-
-                        // TODO: determine if file exists, overwrite, else create one
-                        // use: fs_mkfile
                         if (strncmp(req->header->URI, "/dynamic", 8) != 0) { //The access IS NOT permitted
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
@@ -164,10 +166,8 @@ int webserver_tick(webserver *ws, file_system *fs) {
                         }
 
                     } else if (strncmp(req->header->method, "DELETE", 6) == 0) {
-
-                        // TODO: Remove file / directory if it exists
-                        // use: fs_rm
-                        if (strncmp(req->header->URI, "/dynamic", 8) != 0) { //The access IS NOT permitted
+                        // Only permit access to files in /dynamic
+                        if (strncmp(req->header->URI, "/dynamic", 8) != 0) { // The access IS NOT permitted
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
 
@@ -180,7 +180,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             strcpy(res->header->status_message, "No Content");
                             fs_rm(fs, req->header->URI);
 
-                        } else { //None of the above (is probably necessary)
+                        } else { //None of the above (Incorrect request)
                             res->header->status_code = 400;
                         }
 
