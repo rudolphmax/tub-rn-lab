@@ -55,8 +55,11 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
     int bytes_received = 0;
     memset(buf, 0, bufsize);
 
+    long content_length = 0;
+    long body_size = 0;
+
     // Receiving until buffer ends with CLRF (except last byte which is \0)
-    while (string_ends_with_empty_line(buf) != 0) {
+    while (body_size < content_length+1) {
         if (bytes_received >= bufsize - 1) {
             perror("Buffer full before entire package read.");
             return -1;
@@ -76,12 +79,29 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
         printf("Received %d bytes.\n", n_bytes);
 
         if (n_bytes == -1 || n_bytes == 0) return -1;
-        else bytes_received += n_bytes;
+
+        bytes_received += n_bytes;
+
+        // Catch existing Content-Length header and expect reading body
+        char *content_length_header_line = strstr(buf, "\r\nContent-Length: ");
+        if (content_length_header_line != NULL) { // Request has content
+            char *content_length_str = content_length_header_line + 18;
+            char *ptr;
+            content_length = strtol(content_length_str, &ptr, 10);
+        }
+
+        char *empty_line = strstr(buf, "\r\n\r\n");
+        if (empty_line != NULL) {
+            if (content_length <= 0) break;
+        } else continue; // TODO: Check
+
+        body_size += bytes_received - ((empty_line+4) - buf);
     }
 
     // Making sure buffer ends in \0 for safety
     buf[bufsize-1] = '\0';
-    printf("Full Message: \n------ \n%s------\n", buf);
+    debug_printv("Full Message: \n------ \n", buf);
+    debug_print("\n-----\n");
 
     return 0;
 }
