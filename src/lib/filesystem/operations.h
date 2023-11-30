@@ -1,18 +1,19 @@
 #ifndef OPERATIONS_H
 
 #include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "filesystem.h"
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-
-typedef struct _target_node {
+struct {
     char *target_name;
     int target_index; // -1 == not in fs yet, ergo: no index yet
     char *parent_name;
     int parent_index;
-} target_node;
+} typedef target_node;
 
 // TODO: Doc this
 target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type);
@@ -21,7 +22,7 @@ target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type);
 target_node * fs_find_target(file_system * fs, char* path);
 
 /**
- * Creates a new directory under the given path
+ * Creates a new dir under the given path
  *
  * @Returns: 0 on success, else -1
  */
@@ -38,13 +39,13 @@ int fs_mkdir(file_system *fs, char *path);
 int fs_mkfile(file_system *fs, char *path_and_name);
 
 /**
- * Lists all directories and files in the directory pointed to by path
+ * Lists all directories and files in the dir pointed to by path
  * @Returns:
  * A string in the following format:
- *	- for every directory a line `DIR <directoryname>`. Where `DIR` should
+ *	- for every dir a line `DIR <directoryname>`. Where `DIR` should
  *	literally be there and `<directoryname>` is substituted with the actual name
- *	of that directory.
- *	- for every directory a line `FILE <filename>`. Where `FILE` should
+ *	of that dir.
+ *	- for every dir a line `FILE <filename>`. Where `FILE` should
  *	literally be there and `filename` is substituted with the actual name of
  *	that file.
  * The lines are sorted by inode-index.
@@ -77,11 +78,11 @@ int fs_writef(file_system *fs, char *filename, char *text);
 uint8_t *fs_readf(file_system *fs, char *filename, int *file_size);
 
 /**
- * Deletes a file or a directory recursively.
+ * Deletes a file or a dir recursively.
  *
  * @Returns:
  * 0 on success
- * -1 if the file or directory was not found
+ * -1 if the file or dir was not found
  */
 int fs_rm(file_system *fs, char *path);
 
@@ -95,7 +96,7 @@ int fs_rm(file_system *fs, char *path);
  *
  * @Returns:
  * 0 on success
- * -1 if the file or directory wasn't found
+ * -1 if the file or dir wasn't found
  */
 int fs_import(file_system *fs, char *int_path, char *ext_path);
 
@@ -106,7 +107,7 @@ int fs_import(file_system *fs, char *int_path, char *ext_path);
  *
  * @Returns:
  * 0 on success
- * -1 if the file or directory wasn't found
+ * -1 if the file or dir wasn't found
  */
 int fs_export(file_system *fs, char *int_path, char *ext_path);
 

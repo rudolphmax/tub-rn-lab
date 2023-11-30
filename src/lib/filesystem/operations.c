@@ -23,11 +23,6 @@ SOFTWARE.
 */
 
 #include "./operations.h"
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "../utils.h"
 
 /**
@@ -92,13 +87,13 @@ target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type) {
       
       if (strcmp(fs->inodes[index].name, tok) == 0) {
         if (next) {
-	  if (fs->inodes[index].n_type == directory) break;
+	  if (fs->inodes[index].n_type == dir) break;
 	  else continue;
 	} else if (fs->inodes[index].n_type == n_type) break;
       }
     }
 
-    if (next) { // path has not been fully traversed -> inode has to be a directory
+    if (next) { // path has not been fully traversed -> inode has to be a dir
       if (index == -1) {
 	debug_print("ERR: Path is invalid. (path-invalid)");
         fs_free_target_node(tnode);
@@ -122,14 +117,14 @@ target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type) {
 }
 
 /**
- * Creates a new node (file or directory) in the file system
+ * Creates a new node (file or dir) in the file system
  * - finds free inode
  * - sets reference to it in the parent (given by tnode)
  * @param fs Pointer to a file_system object
  * @param tnode Pointer to a target_node object with target_name & parent_index
  * set
- * @param n_type node_type value for the node that is to be created (reg_file or
- * directory)
+ * @param n_type node_type value for the node that is to be created (fil or
+ * dir)
  * @returns 0 on success, -1 on failure
  */
 int fs_new_node(file_system *fs, target_node *tnode, enum node_type n_type) {
@@ -155,7 +150,7 @@ int fs_new_node(file_system *fs, target_node *tnode, enum node_type n_type) {
     }
   }
   if (index == -1) {
-    debug_print("ERR: No more space in target directory. (exhausted-direct-blocks)");
+    debug_print("ERR: No more space in target dir. (exhausted-direct-blocks)");
     return -1;
   }
 
@@ -167,7 +162,7 @@ int fs_new_node(file_system *fs, target_node *tnode, enum node_type n_type) {
 
 int fs_mkdir(file_system *fs, char *path) {
   // validating path & getting target_name and parent_index
-  target_node *tnode = fs_parse_path(fs, path, directory);
+  target_node *tnode = fs_parse_path(fs, path, dir);
   if (tnode == NULL) return -1;
   
   if (tnode->target_index != -1) {
@@ -176,12 +171,12 @@ int fs_mkdir(file_system *fs, char *path) {
     return -1;
   }
 
-  return fs_new_node(fs, tnode, directory);
+  return fs_new_node(fs, tnode, dir);
 }
 
 int fs_mkfile(file_system *fs, char *path_and_name) {
   // validating path & getting target_name and parent_index
-  target_node *tnode = fs_parse_path(fs, path_and_name, reg_file);
+  target_node *tnode = fs_parse_path(fs, path_and_name, fil);
   if (tnode == NULL)
     return -1;
   
@@ -191,13 +186,13 @@ int fs_mkfile(file_system *fs, char *path_and_name) {
     return -2;
   }
 
-  return fs_new_node(fs, tnode, reg_file);
+  return fs_new_node(fs, tnode, fil);
 }
 
 int cpmint(const void *a, const void *b) { return (*(int *)a) - (*(int *)b); }
 
 char *fs_list(file_system *fs, char *path) {
-  target_node *tnode = fs_parse_path(fs, path, directory);
+  target_node *tnode = fs_parse_path(fs, path, dir);
   if (tnode == NULL)
     return NULL;
  
@@ -238,7 +233,7 @@ char *fs_list(file_system *fs, char *path) {
     }
 
     snprintf(string + strlen(string), line_len, "%s %s\n",
-             (fs->inodes[index].n_type == directory) ? "DIR" : "FIL",
+             (fs->inodes[index].n_type == dir) ? "DIR" : "FIL",
              fs->inodes[index].name);
   }
 
@@ -268,7 +263,7 @@ int fs_writef(file_system *fs, char *filename, char *text) {
     return 0;
 
   // validating path & getting target_name and parent_index
-  target_node *tnode = fs_parse_path(fs, filename, reg_file);
+  target_node *tnode = fs_parse_path(fs, filename, fil);
   if (tnode == NULL)
     return -1;
   if (tnode->target_index == -1) {
@@ -349,7 +344,7 @@ int fs_writef(file_system *fs, char *filename, char *text) {
 
 uint8_t *fs_readf(file_system *fs, char *filename, int *file_size) {
   // validating path
-  target_node *tnode = fs_parse_path(fs, filename, reg_file);
+  target_node *tnode = fs_parse_path(fs, filename, fil);
   if (tnode == NULL)
     return NULL;
   if (tnode->target_index == -1) {
@@ -387,17 +382,17 @@ uint8_t *fs_readf(file_system *fs, char *filename, int *file_size) {
 }
 
 target_node * fs_find_target(file_system * fs, char* path) {
-  target_node * tnode = fs_parse_path(fs, path, directory);
+  target_node * tnode = fs_parse_path(fs, path, dir);
   if (tnode != NULL && tnode->target_name != NULL && tnode->target_index != -1) {
     return tnode;
   }
 
-  tnode = fs_parse_path(fs, path, reg_file);
+  tnode = fs_parse_path(fs, path, fil);
   if (tnode != NULL && tnode->target_name != NULL && tnode->target_index != -1) {
     return tnode;
   }
 
-  debug_print("ERR: File or directory not found.");
+  debug_print("ERR: File or dir not found.");
   if (tnode) fs_free_target_node(tnode);
   return NULL;
 }
@@ -410,7 +405,7 @@ int fs_rm(file_system *fs, char *path) {
   inode* target_inode = &(fs->inodes[tnode->target_index]);
   inode* parent_inode = &(fs->inodes[tnode->parent_index]);
 
-  if (target_inode->n_type == reg_file) {
+  if (target_inode->n_type == fil) {
     // resetting data-blocks
     for (int i = 0; i < DIRECT_BLOCKS_COUNT; i++) {
       int index = target_inode->direct_blocks[i];
@@ -418,12 +413,13 @@ int fs_rm(file_system *fs, char *path) {
         continue;
 
       fs->free_list[index] = 1;
+      fs->free_list[index] = 1;
       fs->s_block->free_blocks++;
       data_block *dblock = &(fs->data_blocks[index]);
       memset(dblock->block, 0, dblock->size);
     }
 
-  } else if (target_inode->n_type == directory) {
+  } else if (target_inode->n_type == dir) {
     // removing children (recursive)
     for (int i = 0; i < DIRECT_BLOCKS_COUNT; i++) {
       int index = target_inode->direct_blocks[i];

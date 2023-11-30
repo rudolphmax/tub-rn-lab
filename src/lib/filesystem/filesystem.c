@@ -22,64 +22,42 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
 #include "./filesystem.h"
 
-file_system *fs_create(uint32_t size) {
-	file_system* new_fs = malloc(sizeof(file_system));
-	if (new_fs == NULL){
-		exit(1);
-	}
+file_system* fs_create(uint32_t size) {
+	file_system* new_fs = calloc(1, sizeof(file_system));
+	if (new_fs == NULL) exit(1);
 
-	// Create and Initialize the superblock
-	new_fs->s_block = malloc(sizeof(superblock));
-	if(new_fs->s_block == NULL){
-		exit(1);
-	}
+	new_fs->s_block = calloc(1, sizeof(superblock));
+	if(new_fs->s_block == NULL) exit(1);
+
 	new_fs->s_block->num_blocks = size;
 	new_fs->s_block->free_blocks = size;
 	
-	// Create free list and set every entry to 1 (meaning that block is free);
-	new_fs->free_list = malloc(size);
-	if (new_fs->free_list == NULL){
-		exit(1);
-	}
-	for (int i=0; i<size; i++) {
-		new_fs->free_list[i] = 1;
-	}
+	// Create free list and set every entry to 1 (= free block)
+	new_fs->free_list = calloc(1, size);
+	if (new_fs->free_list == NULL) exit(1);
+
+	for (int i=0; i<size; i++) new_fs->free_list[i] = 1;
 
 	// Create Inodes and initialize them
-	new_fs->inodes = malloc(size*sizeof(inode));
-	if(new_fs->inodes == NULL){
-		exit(1);
-	}
-	
+	new_fs->inodes = calloc(size, sizeof(inode));
+	if(new_fs->inodes == NULL) exit(1);
 
-	//Initialize all the inodes
-	for (int i=0; i<size; i++) {
-		inode_init(&(new_fs->inodes[i]));
-	}
+	for (int i=0; i<size; i++) inode_init(&(new_fs->inodes[i]));
 	
-	//set first inode as root directory.
-	//Attention: the root doesn't have to be the first inode.
-	//Any other node is sufficient
-	new_fs->inodes[0].n_type = directory;
+	// First inode = Root ('/')
+	new_fs->inodes[0].n_type = dir;
 	strncpy(new_fs->inodes[0].name,"/",NAME_MAX_LENGTH);
 	new_fs->root_node = 0;
 
-	
 	new_fs->data_blocks = calloc(size,sizeof(data_block));
-	if(new_fs->data_blocks == NULL){
-		exit(1);
-	}
+	if(new_fs->data_blocks == NULL) exit(1);
 
 	return new_fs;
 }
 
-void inode_init(inode *i){
+void inode_init(inode *i) {
 	i->n_type=free_block;
 	i->size=0;
 	memset(i->name,0,NAME_MAX_LENGTH);
@@ -87,12 +65,11 @@ void inode_init(inode *i){
 	i->parent = -1; //meaning it has no parent
 }
 
-int find_free_inode(file_system* fs){
+int find_free_inode(file_system *fs) {
 	for (int i=0; i<fs->s_block->num_blocks; i++) {
-		if(fs->inodes[i].n_type==free_block){
-			return i;
-		}
+		if(fs->inodes[i].n_type==free_block) return i;
 	}
+
 	return -1;
 }
 

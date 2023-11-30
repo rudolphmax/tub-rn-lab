@@ -145,7 +145,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
 
                             inode* target_inode = &(fs->inodes[tnode->target_index]);
 
-                            if (target_inode->n_type == reg_file) { // target is a file not a directory
+                            if (target_inode->n_type == fil) { // target is a file not a directory
                                 int file_size = 0;
                                 uint8_t *file_contents = fs_readf(fs, req->header->URI, &file_size);
 
@@ -169,7 +169,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                                 strcpy(res->header->status_message, "Created");
                                 fs_writef(fs,req->header->URI,req->body);
 
-                            } else if (mkfile_result == -2 && fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == reg_file){ //Successfully overwrites the target with the correct type
+                            } else if (mkfile_result == -2 && fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == fil){ //Successfully overwrites the target with the correct type
                                 res->header->status_code = 204;
                                 strcpy(res->header->status_message, "No Content");
                                 fs_rm(fs, req->header->URI); //Do I remove the entire path?
@@ -191,7 +191,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             res->header->status_code = 404;
                             strcpy(res->header->status_message, "Not Found");
 
-                        } else if (fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == reg_file){ //The access is permitted and the file to be deleted has the correct type
+                        } else if (fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == fil){ //The access is permitted and the file to be deleted has the correct type
                             res->header->status_code = 204;
                             strcpy(res->header->status_message, "No Content");
                             fs_rm(fs, req->header->URI);
