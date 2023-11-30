@@ -1,0 +1,20 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  package_source:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Get cmake
+      uses: threeal/cmake-action@v1.3.0
+    - name: build application
+      run: |
+        cmake -B build
+        make -C build
+    - name: package
+      working-directory: ./build
+      run: make package_source
