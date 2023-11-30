@@ -1,12 +1,17 @@
 #include "utils.h"
 #include <stdio.h>
+#define DEBUG 0
 
 void debug_print(char* message) {
-    printf("DEBUG: %s\n", message);
+    #if DEBUG
+        printf("DEBUG: %s\n", message);
+    #endif
 }
 
 void debug_printv(char* message, char* value) {
-    printf("DEBUG: %s %s\n", message, value);
+    #if DEBUG
+        printf("DEBUG: %s %s\n", message, value);
+    #endif
 }
 
 int str_is_uint16(const char *str) {
