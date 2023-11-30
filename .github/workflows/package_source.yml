@@ -18,3 +18,11 @@ jobs:
     - name: package
       working-directory: ./build
       run: make package_source
+    - name: Commit changes
+      if: ${{ success() }}
+      uses: EndBug/add-and-commit@v9
+      with:
+        add: "./build/RN-Praxis-0.1.1-Source.tar.gz"
+        pull: "--rebase --autostash ."
+        message: "autom(generated): generated package tar.gz"
+        default_author: github_actions
