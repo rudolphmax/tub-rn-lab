@@ -113,6 +113,8 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_lengt
 int socket_shutdown(webserver *ws, int *sockfd) {
     if (shutdown(*sockfd, SHUT_RDWR) < 0) return -1;
 
+    if (ws == NULL) return 0;
+
     // remove socket from open_socket list
     for (int i = 0; i < MAX_NUM_OPEN_SOCKETS; i++) {
         if (ws->open_sockets[i] == *sockfd) {

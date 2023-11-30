@@ -382,10 +382,13 @@ uint8_t *fs_readf(file_system *fs, char *filename, int *file_size) {
 }
 
 target_node * fs_find_target(file_system * fs, char* path) {
-  target_node * tnode = fs_parse_path(fs, path, dir);
+  target_node * tnode;
+  tnode = fs_parse_path(fs, path, dir);
   if (tnode != NULL && tnode->target_name != NULL && tnode->target_index != -1) {
     return tnode;
   }
+
+  if (tnode) fs_free_target_node(tnode);
 
   tnode = fs_parse_path(fs, path, fil);
   if (tnode != NULL && tnode->target_name != NULL && tnode->target_index != -1) {

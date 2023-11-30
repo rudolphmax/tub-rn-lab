@@ -150,8 +150,12 @@ int webserver_tick(webserver *ws, file_system *fs) {
                                 uint8_t *file_contents = fs_readf(fs, req->header->URI, &file_size);
 
                                 if (file_size > 0) memcpy(res->body, file_contents, file_size);
+
+                                free(file_contents);
                             }
                         }
+
+                        fs_free_target_node(tnode);
 
                     } else if (strncmp(req->header->method, "PUT", 3) == 0) {
                         if (strncmp(req->header->URI, "/dynamic", 8) != 0) { //The access IS NOT permitted
@@ -161,6 +165,8 @@ int webserver_tick(webserver *ws, file_system *fs) {
                         } else {   //The access IS permitted
                             int mkfile_result = fs_mkfile(fs,req->header->URI);
 
+                            target_node *tnode = fs_find_target(fs, req->header->URI);
+
                             if (mkfile_result == -1) {  //Failed to create a target
                                 res->header->status_code = 400;
 
@@ -169,7 +175,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                                 strcpy(res->header->status_message, "Created");
                                 fs_writef(fs,req->header->URI,req->body);
 
-                            } else if (mkfile_result == -2 && fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == fil){ //Successfully overwrites the target with the correct type
+                            } else if (mkfile_result == -2 && fs->inodes[tnode->target_index].n_type == fil){ //Successfully overwrites the target with the correct type
                                 res->header->status_code = 204;
                                 strcpy(res->header->status_message, "No Content");
                                 fs_rm(fs, req->header->URI); //Do I remove the entire path?
@@ -179,19 +185,23 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             } else { //None of the above (probably unnecessary: Damian want's to leave it out, I want to keep it :P)
                                 res->header->status_code = 400;
                             }
+
+                            fs_free_target_node(tnode);
                         }
 
                     } else if (strncmp(req->header->method, "DELETE", 6) == 0) {
+                        target_node *tnode = fs_find_target(fs, req->header->URI);
+
                         // Only permit access to files in /dynamic
                         if (strncmp(req->header->URI, "/dynamic", 8) != 0) { // The access IS NOT permitted
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
 
-                        } else if (fs_find_target(fs, req->header->URI) == NULL) { //The access is permitted, but the file doesn´t exist
+                        } else if (tnode == NULL) { //The access is permitted, but the file doesn´t exist
                             res->header->status_code = 404;
                             strcpy(res->header->status_message, "Not Found");
 
-                        } else if (fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == fil){ //The access is permitted and the file to be deleted has the correct type
+                        } else if (fs->inodes[tnode->target_index].n_type == fil){ //The access is permitted and the file to be deleted has the correct type
                             res->header->status_code = 204;
                             strcpy(res->header->status_message, "No Content");
                             fs_rm(fs, req->header->URI);
@@ -199,6 +209,8 @@ int webserver_tick(webserver *ws, file_system *fs) {
                         } else { //None of the above (Incorrect request)
                             res->header->status_code = 400;
                         }
+
+                        fs_free_target_node(tnode);
 
                     } else {
                         res->header->status_code = 501;
@@ -211,6 +223,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                 char *res_msg = response_stringify(res);
                 socket_send(&in_fd, res_msg);
                 response_free(res);
+                free(res_msg);
 
             } else if (errno == ECONNRESET || errno == EINTR || errno == ETIMEDOUT) {
                 connection_is_alive = 0;
@@ -225,8 +238,11 @@ int webserver_tick(webserver *ws, file_system *fs) {
 
                 perror("Socket couldn't read package.");
             }
+
+            free(buf);
         }
     }
+
     // TODO: Do we have to free the filesystem?
     return 0;
 }
