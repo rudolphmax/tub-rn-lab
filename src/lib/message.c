@@ -134,7 +134,7 @@ int response_bytesize(response *res) {
     size += strlen(res->body);
 
     // TODO: Its missing exactly this amount of bytes (Says Valgrind). Why?
-    size += 2; // \r\n
+    size += 3;
     size += strlen(res->body);
 
     return size;

@@ -71,7 +71,7 @@ int parse_header(char* req_string, request *req, int content_length) {
         char *body = strstr(req_string, "\r\n\r\n") + strlen("\r\n\r\n");
 
         if (strlen(body) != content_length) {
-            printf("Content-Length does not match body length! Its %lu, but should be %d", strlen(body), content_length);
+            debug_print("Content-Length does not match body length!");
         }
 
         // reallocating body if it's too small

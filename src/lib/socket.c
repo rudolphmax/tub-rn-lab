@@ -76,7 +76,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_lengt
                         (bufsize-1) - bytes_received,
                         0
                     );
-        printf("Received %d bytes.\n", n_bytes);
+        // printf("Received %d bytes.\n", n_bytes);
 
         if (n_bytes == -1 || n_bytes == 0) return -1;
 
