@@ -51,15 +51,15 @@ int socket_send(int* sockfd, char* message) {
     return 0;
 }
 
-int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
+int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_length) {
     int bytes_received = 0;
     memset(buf, 0, bufsize);
 
-    long content_length = 0;
-    long body_size = 0;
+    long body_size = -2;
+    char *empty_line = NULL;
 
     // Receiving until buffer ends with CLRF (except last byte which is \0)
-    while (body_size < content_length+1) {
+    while (empty_line == NULL || body_size < *content_length) {
         if (bytes_received >= bufsize - 1) {
             perror("Buffer full before entire package read.");
             return -1;
@@ -84,18 +84,22 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
 
         // Catch existing Content-Length header and expect reading body
         char *content_length_header_line = strstr(buf, "\r\nContent-Length: ");
-        if (content_length_header_line != NULL) { // Request has content
+        if (content_length_header_line != NULL && *content_length == -1) { // Request has content and content_length hashnt been set yet
             char *content_length_str = content_length_header_line + 18;
             char *ptr;
-            content_length = strtol(content_length_str, &ptr, 10);
+            *content_length = strtol(content_length_str, &ptr, 10);
+            debug_printv("Found Content-Length Header: %d", content_length_str);
+            body_size = 0; // because of initial -2
         }
 
-        char *empty_line = strstr(buf, "\r\n\r\n");
+        empty_line = strstr(buf, "\r\n\r\n");
         if (empty_line != NULL) {
-            if (content_length <= 0) break;
-        } else continue; // TODO: Check
-
-        body_size += bytes_received - ((empty_line+4) - buf);
+            if (*content_length == -1) {
+                break; // Found empy line and no content length header -> end of message
+            } else {
+                body_size += bytes_received - ((empty_line+4) - buf);
+            }
+        }
     }
 
     // Making sure buffer ends in \0 for safety
