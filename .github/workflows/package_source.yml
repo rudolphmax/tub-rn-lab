@@ -22,7 +22,7 @@ jobs:
       if: ${{ success() }}
       uses: EndBug/add-and-commit@v9
       with:
-        add: "./build/RN-Praxis-0.1.1-Source.tar.gz"
+        add: "./build/RN-Praxis-0.1.1-Source.tar.gz --force"
         pull: "--rebase --autostash ."
         push: "origin main --force"
         message: "autom(generated): generated package tar.gz"
