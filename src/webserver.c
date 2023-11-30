@@ -27,7 +27,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
-int parse_header(char* req_string, request *req) {
+int parse_header(char* req_string, request *req, int content_length) {
     int endline_index = strstr(req_string, "\r\n") - req_string;
     char* header_line = calloc(endline_index + 1, sizeof(char)); // + 1 for '\0'
     header_line = strncpy(header_line, req_string, endline_index);
@@ -66,12 +66,22 @@ int parse_header(char* req_string, request *req) {
     free(header_line);
     if (header_field_num != 3) return -1;
 
-    char* content_length_end_index = strstr(req_string, "Content-Length: ") + strlen("Content-Length: ");
-    char* next_newline_index = strstr(content_length_end_index, "\r\n");
+    // TODO: Replace this with check for content-length header when we are reading headers
+    if (string_ends_with_empty_line(req_string) != 0) { // expecting body
+        char *body = strstr(req_string, "\r\n\r\n") + strlen("\r\n\r\n");
 
-    int content_length = strtol(content_length_end_index, next_newline_index, 10);
-    add_header_field(req, "Content-Length", content_length);
-    // FIXME! TODO!
+        if (strlen(body) != content_length) {
+            printf("Content-Length does not match body length! Its %lu, but should be %d", strlen(body), content_length);
+        }
+
+        // reallocating body if it's too small
+        if (content_length > BODY_INITIAL_SIZE-1) { // -1 because of \0
+            req->body = realloc(req->body, (2*BODY_INITIAL_SIZE) * sizeof(char));
+            memset(req->body, 0, 2*BODY_INITIAL_SIZE);
+        }
+
+        strncpy(req->body, body, content_length);
+    }
 
     return 0;
 }
@@ -99,8 +109,9 @@ int webserver_tick(webserver *ws, file_system *fs) {
         int connection_is_alive = 1;
         while (connection_is_alive) {
             char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
+            int content_length = -1;
 
-            if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
+            if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE, &content_length) == 0) {
                 receive_attempts_left = RECEIVE_ATTEMPTS;
 
                 request *req;
@@ -109,12 +120,17 @@ int webserver_tick(webserver *ws, file_system *fs) {
                     perror("Error initializing request structure");
                 }
 
+                char* content_length_str = calloc(12, sizeof(char));
+                sprintf(content_length_str, "%d", content_length);
+                add_header_field(req, "Content-Length", content_length_str);
+                free(content_length_str);
+
                 response *res = response_create(0, NULL, NULL, NULL);
                 if (res == NULL) {
                     perror("Error initializing response structure");
                 }
 
-                if (parse_header(buf, req) == 0) {
+                if (parse_header(buf, req, content_length) == 0) {
                     if (strncmp(req->header->method, "GET", 3) == 0) {
 
                         // validating request URI against filesystem
@@ -148,7 +164,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             if (mkfile_result == -1) {  //Failed to create a target
                                 res->header->status_code = 400;
 
-                            } else if (mkfile_result == 0) {   //Successfully creates a target
+                            } else if (mkfile_result == 0) {   //Successfully created the target
                                 res->header->status_code = 201;
                                 strcpy(res->header->status_message, "Created");
                                 fs_writef(fs,req->header->URI,req->body);
