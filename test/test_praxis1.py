@@ -84,7 +84,7 @@ def test_httpreply():
         conn.send('Request\r\n\r\n'.encode())
         time.sleep(.5)  # Attempt to gracefully handle all kinds of multi-packet replies...
         reply = conn.recv(1024)
-        assert re.search(br'HTTP/1.[01] 400.*\r\n\r\n', reply)
+        assert re.search(br'HTTP/1.[01] 400.*\r\n(.*\r\n)\r\n', reply)
 
 
 def test_httpreplies():

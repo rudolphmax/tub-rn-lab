@@ -46,7 +46,7 @@ response *response_create(int status_code, char *status_message, char *protocol,
 
     res_header->protocol = calloc(HEADER_SPECS_LENGTH, sizeof(char));
     if (protocol == NULL) {
-        strcpy(res_header->protocol, "HTTP/1.0");
+        strcpy(res_header->protocol, "HTTP/1.1");
     } else {
         strcpy(res_header->protocol, protocol);
     }
@@ -112,16 +112,16 @@ int response_bytesize(response *res) {
     size += 3; // status code
     size += strlen(res->header->status_message) + 2; // +2 for \r\n
 
+    char *body_bytesize_str = calloc(12, sizeof(char));
     if (strlen(res->body) > 0) {
         if (strlen(res->body) > 99999999999) {
             perror("Body too large.");
             return -1;
         }
-
-        char *body_bytesize_str = calloc(12, sizeof(char));
-        snprintf(body_bytesize_str, 12, "%d", strlen(res->body));
-        add_header_field(res, "Content-Length", body_bytesize_str);
     }
+
+    snprintf(body_bytesize_str, 12, "%d", strlen(res->body));
+    add_header_field(res, "Content-Length", body_bytesize_str);
 
     for (int i = 0; i < res->header->num_fields; i++) {
         if (strlen(res->header->fields[i].name) == 0) continue;
@@ -134,7 +134,7 @@ int response_bytesize(response *res) {
     size += strlen(res->body);
 
     // TODO: Its missing exactly this amount of bytes (Says Valgrind). Why?
-    size += 2; // \r\n
+    size += 3;
     size += strlen(res->body);
 
     return size;

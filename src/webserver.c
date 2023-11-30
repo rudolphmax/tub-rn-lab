@@ -27,7 +27,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
-int parse_header(char* req_string, request *req) {
+int parse_header(char* req_string, request *req, int content_length) {
     int endline_index = strstr(req_string, "\r\n") - req_string;
     char* header_line = calloc(endline_index + 1, sizeof(char)); // + 1 for '\0'
     header_line = strncpy(header_line, req_string, endline_index);
@@ -63,15 +63,30 @@ int parse_header(char* req_string, request *req) {
         ptr = strtok(NULL, delimiter);
         header_field_num++;
     }
-
     free(header_line);
-
     if (header_field_num != 3) return -1;
+
+    // TODO: Replace this with check for content-length header when we are reading headers
+    if (string_ends_with_empty_line(req_string) != 0) { // expecting body
+        char *body = strstr(req_string, "\r\n\r\n") + strlen("\r\n\r\n");
+
+        if (strlen(body) != content_length) {
+            debug_print("Content-Length does not match body length!");
+        }
+
+        // reallocating body if it's too small
+        if (content_length > BODY_INITIAL_SIZE-1) { // -1 because of \0
+            req->body = realloc(req->body, (2*BODY_INITIAL_SIZE) * sizeof(char));
+            memset(req->body, 0, 2*BODY_INITIAL_SIZE);
+        }
+
+        strncpy(req->body, body, content_length);
+    }
 
     return 0;
 }
 
-int webserver_tick(webserver *ws) {
+int webserver_tick(webserver *ws, file_system *fs) {
     // TODO: Multithread with fork to accept multiple simultaneous connections
 
     // Deciding what to do for each open socket - are they listening or not?
@@ -94,8 +109,9 @@ int webserver_tick(webserver *ws) {
         int connection_is_alive = 1;
         while (connection_is_alive) {
             char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
+            int content_length = -1;
 
-            if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE) == 0) {
+            if (socket_receive_all(&in_fd, buf, MAX_DATA_SIZE, &content_length) == 0) {
                 receive_attempts_left = RECEIVE_ATTEMPTS;
 
                 request *req;
@@ -104,48 +120,86 @@ int webserver_tick(webserver *ws) {
                     perror("Error initializing request structure");
                 }
 
+                char* content_length_str = calloc(12, sizeof(char));
+                sprintf(content_length_str, "%d", content_length);
+                add_header_field(req, "Content-Length", content_length_str);
+                free(content_length_str);
+
                 response *res = response_create(0, NULL, NULL, NULL);
                 if (res == NULL) {
                     perror("Error initializing response structure");
                 }
 
-                if (parse_header(buf, req) == 0) {
+                if (parse_header(buf, req, content_length) == 0) {
                     if (strncmp(req->header->method, "GET", 3) == 0) {
 
-                        if (strcmp(req->header->URI, "/static/foo") == 0) {
+                        // validating request URI against filesystem
+                        target_node *tnode = fs_find_target(fs, req->header->URI);
+
+                        // the target (.../.../foo) exists
+                        if (tnode == NULL) {
+                            res->header->status_code = 404;
+                        } else {
                             res->header->status_code = 200;
                             strcpy(res->header->status_message, "Ok");
-                            strcpy(res->body, "Foo");
 
-                        } else if (strcmp(req->header->URI, "/static/bar") == 0){
-                            res->header->status_code = 200;
-                            strcpy(res->header->status_message, "Ok");
-                            strcpy(res->body, "Bar");
+                            inode* target_inode = &(fs->inodes[tnode->target_index]);
 
-                        } else if (strcmp(req->header->URI, "/static/baz") == 0) {
-                            res->header->status_code = 200;
-                            strcpy(res->header->status_message, "Ok");
-                            strcpy(res->body, "Baz");
+                            if (target_inode->n_type == fil) { // target is a file not a directory
+                                int file_size = 0;
+                                uint8_t *file_contents = fs_readf(fs, req->header->URI, &file_size);
 
-                        } else res->header->status_code = 404;
+                                if (file_size > 0) memcpy(res->body, file_contents, file_size);
+                            }
+                        }
 
                     } else if (strncmp(req->header->method, "PUT", 3) == 0) {
-
-                        if (strncmp(req->header->URI, "dynamic", 7) != 0) {
+                        if (strncmp(req->header->URI, "/dynamic", 8) != 0) { //The access IS NOT permitted
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
-                        } else {
-                            int blabla;
+
+                        } else {   //The access IS permitted
+                            int mkfile_result = fs_mkfile(fs,req->header->URI);
+
+                            if (mkfile_result == -1) {  //Failed to create a target
+                                res->header->status_code = 400;
+
+                            } else if (mkfile_result == 0) {   //Successfully created the target
+                                res->header->status_code = 201;
+                                strcpy(res->header->status_message, "Created");
+                                fs_writef(fs,req->header->URI,req->body);
+
+                            } else if (mkfile_result == -2 && fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == fil){ //Successfully overwrites the target with the correct type
+                                res->header->status_code = 204;
+                                strcpy(res->header->status_message, "No Content");
+                                fs_rm(fs, req->header->URI); //Do I remove the entire path?
+                                fs_mkfile(fs, req->header->URI);
+                                fs_writef(fs,req->header->URI,req->body);
+
+                            } else { //None of the above (probably unnecessary: Damian want's to leave it out, I want to keep it :P)
+                                res->header->status_code = 400;
+                            }
                         }
 
-                    } else if (strncmp(req->header->method, "DELETE", 3) == 0) {
-
-                        if (strncmp(req->header->URI, "dynamic", 7) != 0) {
+                    } else if (strncmp(req->header->method, "DELETE", 6) == 0) {
+                        // Only permit access to files in /dynamic
+                        if (strncmp(req->header->URI, "/dynamic", 8) != 0) { // The access IS NOT permitted
                             res->header->status_code = 403;
                             strcpy(res->header->status_message, "Forbidden");
-                        } else {
-                            int bla;
+
+                        } else if (fs_find_target(fs, req->header->URI) == NULL) { //The access is permitted, but the file doesn´t exist
+                            res->header->status_code = 404;
+                            strcpy(res->header->status_message, "Not Found");
+
+                        } else if (fs->inodes[fs_find_target(fs, req->header->URI)->target_index].n_type == fil){ //The access is permitted and the file to be deleted has the correct type
+                            res->header->status_code = 204;
+                            strcpy(res->header->status_message, "No Content");
+                            fs_rm(fs, req->header->URI);
+
+                        } else { //None of the above (Incorrect request)
+                            res->header->status_code = 400;
                         }
+
                     } else {
                         res->header->status_code = 501;
                     }
@@ -173,7 +227,7 @@ int webserver_tick(webserver *ws) {
             }
         }
     }
-
+    // TODO: Do we have to free the filesystem?
     return 0;
 }
 
@@ -200,6 +254,19 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+    // TODO: Refactor this into a function
+    // initializing underlying filesystem
+    file_system *fs = fs_create(500); // TODO: Which size to choose?
+    fs_mkdir(fs, "/static");
+    fs_mkdir(fs, "/dynamic");
+    fs_mkfile(fs, "/static/foo");
+    fs_writef(fs, "/static/foo", "Foo");
+    fs_mkfile(fs, "/static/bar");
+    fs_writef(fs, "/static/bar", "Bar");
+    fs_mkfile(fs, "/static/baz");
+    fs_writef(fs, "/static/baz", "Baz");
+
+    // initializing webserver
     webserver *ws = webserver_init(argv[1], argv[2]);
     if (!ws) {
         perror("Initialization of the webserver failed.");
@@ -213,7 +280,7 @@ int main(int argc, char **argv) {
 
     int quit = 0;
     while(!quit) {
-        if (webserver_tick(ws) != 0) quit = 1;
+        if (webserver_tick(ws, fs) != 0) quit = 1;
     }
 
     for (int i = 0; i < ws->num_open_sockets; i++) {
@@ -222,6 +289,7 @@ int main(int argc, char **argv) {
     }
 
     webserver_free(ws);
+    fs_free(fs);
 
     return 0;
 }
