@@ -153,9 +153,9 @@ int webserver_tick(webserver *ws, file_system *fs) {
 
                                 free(file_contents);
                             }
-                        }
 
-                        fs_free_target_node(tnode);
+                            fs_free_target_node(tnode);
+                        }
 
                     } else if (strncmp(req->header->method, "PUT", 3) == 0) {
                         if (strncmp(req->header->URI, "/dynamic", 8) != 0) { //The access IS NOT permitted
@@ -186,7 +186,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                                 res->header->status_code = 400;
                             }
 
-                            fs_free_target_node(tnode);
+                            if (tnode != NULL) fs_free_target_node(tnode);
                         }
 
                     } else if (strncmp(req->header->method, "DELETE", 6) == 0) {
@@ -210,7 +210,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                             res->header->status_code = 400;
                         }
 
-                        fs_free_target_node(tnode);
+                        if (tnode != NULL) fs_free_target_node(tnode);
 
                     } else {
                         res->header->status_code = 501;
