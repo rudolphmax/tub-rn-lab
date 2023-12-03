@@ -34,6 +34,7 @@ request* request_create(char *method, char *URI, char *body) {
 void request_free(request *req) {
     free(req->header->fields);
     free(req->header->protocol);
+    free(req->header->method);
     free(req->header->URI);
 
     free(req->header);
@@ -122,6 +123,7 @@ int response_bytesize(response *res) {
 
     snprintf(body_bytesize_str, 12, "%d", strlen(res->body));
     add_header_field(res, "Content-Length", body_bytesize_str);
+    free(body_bytesize_str);
 
     for (int i = 0; i < res->header->num_fields; i++) {
         if (strlen(res->header->fields[i].name) == 0) continue;
@@ -157,6 +159,8 @@ char* response_stringify(response *res) {
     char *status_code_str = calloc(4, sizeof(char));
     snprintf(status_code_str, 4, "%d", res->header->status_code);
     strcat(res_str, status_code_str);
+    free(status_code_str);
+
     strcat(res_str, " ");
 
     strcat(res_str, res->header->status_message);

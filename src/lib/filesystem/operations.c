@@ -54,6 +54,7 @@ target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type) {
   // paths have to be absolute (starting with '/')
   if (strncmp(p_validate, "/", 1) != 0) {
     debug_print("ERR: Path is invalid. Must be absolute. (no-leading-slash)");
+    free(p_validate);
     return NULL;
   }
 
@@ -70,6 +71,8 @@ target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type) {
     tnode->parent_index = fs->root_node;
     *(tnode->target_name) = '/';
     *(tnode->parent_name) = '/';
+
+    free(p_validate);
     return tnode;
   }
 
@@ -95,8 +98,9 @@ target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type) {
 
     if (next) { // path has not been fully traversed -> inode has to be a dir
       if (index == -1) {
-	debug_print("ERR: Path is invalid. (path-invalid)");
+	    debug_print("ERR: Path is invalid. (path-invalid)");
         fs_free_target_node(tnode);
+        free(p_validate);
         return NULL;
       }
       tnode->parent_index = index;
@@ -107,11 +111,10 @@ target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type) {
 
     tok = next;
   }
+
   free(p_validate);
 
-  strncpy(tnode->parent_name,
-	  fs->inodes[tnode->parent_index].name,
-          NAME_MAX_LENGTH);
+  strncpy(tnode->parent_name, fs->inodes[tnode->parent_index].name, NAME_MAX_LENGTH);
 
   return tnode;
 }
@@ -382,10 +385,13 @@ uint8_t *fs_readf(file_system *fs, char *filename, int *file_size) {
 }
 
 target_node * fs_find_target(file_system * fs, char* path) {
-  target_node * tnode = fs_parse_path(fs, path, dir);
+  target_node * tnode;
+  tnode = fs_parse_path(fs, path, dir);
   if (tnode != NULL && tnode->target_name != NULL && tnode->target_index != -1) {
     return tnode;
   }
+
+  if (tnode) fs_free_target_node(tnode);
 
   tnode = fs_parse_path(fs, path, fil);
   if (tnode != NULL && tnode->target_name != NULL && tnode->target_index != -1) {

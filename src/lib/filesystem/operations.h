@@ -15,6 +15,8 @@ struct {
     int parent_index;
 } typedef target_node;
 
+void fs_free_target_node(target_node *tnode);
+
 // TODO: Doc this
 target_node *fs_parse_path(file_system *fs, char *path, enum node_type n_type);
 
