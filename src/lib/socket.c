@@ -107,7 +107,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_lengt
     debug_printv("Full Message: \n------ \n", buf);
     debug_print("\n-----\n");
 
-    return 0;
+    return bytes_received;
 }
 
 int socket_shutdown(webserver *ws, int *sockfd) {
