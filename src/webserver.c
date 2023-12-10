@@ -102,7 +102,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
             }
             // else: accept failed because socket is unwilling to listen.
             // Handle non-listening sockets here
-            continue;
+            // continue;
         }
 
         int receive_attempts_left = RECEIVE_ATTEMPTS;
@@ -289,8 +289,15 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    if (socket_listen(ws) < 0) {
-        perror("Socket Creation failed.");
+    // opening TCP Socket
+    if (socket_listen(ws, SOCK_STREAM) < 0) {
+        perror("TCP Socket Creation failed.");
+        exit(EXIT_FAILURE);
+    }
+
+    // opening UDP Socket
+    if (socket_listen(ws, SOCK_DGRAM) < 0) {
+        perror("UDP Socket Creation failed.");
         exit(EXIT_FAILURE);
     }
 

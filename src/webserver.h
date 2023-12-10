@@ -12,7 +12,7 @@
 
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
 #define EXPECTED_NUMBER_OF_PARAMS 2
-#define MAX_NUM_OPEN_SOCKETS 1
+#define MAX_NUM_OPEN_SOCKETS 10
 #define MAX_DATA_SIZE 1024
 #define RECEIVE_ATTEMPTS 1 // The amount of times the server should retry receiving from a socket if an error occurs
 

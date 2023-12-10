@@ -8,7 +8,7 @@ int socket_accept(int *sockfd) {
     return accept(*sockfd, (struct sockaddr*) &in_addr, &in_addr_size);
 }
 
-int socket_listen(webserver *ws) {
+int socket_listen(webserver *ws, int socktype) {
     if (ws->num_open_sockets >= MAX_NUM_OPEN_SOCKETS) {
         perror("Maximum number of open open_sockets reached.");
         return -1;
@@ -18,7 +18,7 @@ int socket_listen(webserver *ws) {
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_socktype = socktype;
     hints.ai_flags = AI_PASSIVE;
 
     if (getaddrinfo(ws->HOST, ws->PORT, &hints, &res) != 0) return -1;

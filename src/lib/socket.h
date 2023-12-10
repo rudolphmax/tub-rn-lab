@@ -14,9 +14,10 @@
  * Opens a listening socket for the given webserver (which provides PORT & HOST).
  * The resulting socket's file descriptor is written to ws->open_sockets.
  * @param ws the webserver to open the socket for
+ * @param socktype socket-type corresponding to the AI_SOCKTYPE of addrinfo
  * @return 0 on success, -1 on error
  */
-int socket_listen(webserver *ws);
+int socket_listen(webserver *ws, int socktype);
 
 /**
  * Accepts connections on a given socket and fills `in_fd` with the connection's file descriptor.
