@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <openssl/sha.h>
 #include "lib/utils.h"
 #include "lib/message.h"
 #include "lib/filesystem/filesystem.h"
