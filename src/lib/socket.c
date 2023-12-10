@@ -42,20 +42,22 @@ int socket_send(int* sockfd, char* message) {
     unsigned long len = strlen(message);
     debug_printv("Sending message:", message);
 
-    long bytes_sent = 0;
+    unsigned long bytes_sent = 0;
     while (bytes_sent < len) {
-        bytes_sent += send(*sockfd, message + bytes_sent, len - bytes_sent, 0);
-        if (bytes_sent < 0) return -1;
+        int ret = send(*sockfd, message + bytes_sent, len - bytes_sent, 0);
+        if (ret < 0) return -1;
+
+        bytes_sent += ret;
     }
 
     return 0;
 }
 
-int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_length) {
-    int bytes_received = 0;
+int socket_receive_all(int *in_fd, char *buf, size_t bufsize, unsigned int* content_length) {
+    unsigned int bytes_received = 0;
     memset(buf, 0, bufsize);
 
-    long body_size = -2;
+    long body_size = -1;
     char *empty_line = NULL;
 
     // Receiving until buffer ends with CLRF (except last byte which is \0)
@@ -84,7 +86,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_lengt
 
         // Catch existing Content-Length header and expect reading body
         char *content_length_header_line = strstr(buf, "\r\nContent-Length: ");
-        if (content_length_header_line != NULL && *content_length == -1) { // Request has content and content_length hashnt been set yet
+        if (content_length_header_line != NULL && *content_length == 0) { // Request has content and content_length haven't been set yet
             char *content_length_str = content_length_header_line + 18;
             char *ptr;
             *content_length = strtol(content_length_str, &ptr, 10);
@@ -94,7 +96,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_lengt
 
         empty_line = strstr(buf, "\r\n\r\n");
         if (empty_line != NULL) {
-            if (*content_length == -1) {
+            if (*content_length == 0) {
                 break; // Found empy line and no content length header -> end of message
             } else {
                 body_size += bytes_received - ((empty_line+4) - buf);

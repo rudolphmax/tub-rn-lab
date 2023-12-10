@@ -22,38 +22,38 @@ enum header_method {
 };
 */
 
-struct header_field {
+typedef struct header_field {
     char name[HEADER_FIELD_NAME_LENGTH];
     char value[HEADER_FIELD_VALUE_LENGTH];
-} typedef header_field;
+} header_field;
 
-struct request_header {
+typedef struct request_header {
     char* method;
     char* URI;
     char* protocol;
     // Array of header fields
-    header_field* fields;
+    struct header_field* fields;
     int num_fields;
-} typedef request_header;
+} request_header;
 
-struct response_header {
+typedef struct response_header {
     char* protocol;
     int status_code;
     char* status_message;
     // Array of header fields
-    header_field* fields;
+    struct header_field* fields;
     int num_fields;
-} typedef response_header;
+} response_header;
 
-struct request {
-    request_header *header;
+typedef struct request {
+    struct request_header *header;
     char *body;
-} typedef request;
+} request;
 
-struct response {
-    response_header *header;
+typedef struct response {
+    struct response_header *header;
     char *body;
-} typedef response;
+} response;
 
 /**
  * Creates a new empty request.

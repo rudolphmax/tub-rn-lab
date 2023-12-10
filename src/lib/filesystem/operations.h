@@ -8,12 +8,12 @@
 
 #include "filesystem.h"
 
-struct {
+typedef struct target_node {
     char *target_name;
     int target_index; // -1 == not in fs yet, ergo: no index yet
     char *parent_name;
     int parent_index;
-} typedef target_node;
+} target_node;
 
 void fs_free_target_node(target_node *tnode);
 

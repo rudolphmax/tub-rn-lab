@@ -17,35 +17,35 @@ enum node_type{
 	free_block=3
 };
 
-struct {
+typedef struct data_block {
 	size_t size;
 	uint8_t block[BLOCK_SIZE];
-} typedef data_block;
+} data_block;
 
 /*
  * The direct_blocks can either point to other inode, in case this inode is a dir
  * or to data_blocks, in case this is a regular file
  */
-struct {
+typedef struct inode {
 	enum node_type n_type;
 	uint16_t size;
 	char name[NAME_MAX_LENGTH];
 	int direct_blocks[DIRECT_BLOCKS_COUNT]; //Block numbers. -1 if there is no block
 	int parent; //inode number of parent
-} typedef inode;
+} inode;
 
-struct {
+typedef struct superblock {
 	uint32_t num_blocks;
 	uint32_t free_blocks;
-} typedef superblock;
+} superblock;
 
-struct {
-	superblock* s_block;
-	uint8_t * free_list; //free == 1
-	inode * inodes;	
-	data_block* data_blocks;
-	int root_node; //inode-number of root node
-} typedef file_system;
+typedef struct file_system {
+	struct superblock* s_block;
+    uint8_t * free_list; //free == 1
+    struct inode * inodes;
+    struct data_block* data_blocks;
+    int root_node; //inode-number of root node
+} file_system;
 
 
 /**

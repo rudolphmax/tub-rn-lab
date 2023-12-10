@@ -16,13 +16,13 @@
 #define MAX_DATA_SIZE 1024
 #define RECEIVE_ATTEMPTS 1 // The amount of times the server should retry receiving from a socket if an error occurs
 
-struct {
+typedef struct webserver {
     char* HOST;
     char* PORT;
     // Array of file descriptors (int) of currently open sockets. Length: MAX_NUM_OPEN_SOCKETS
     int* open_sockets;
     int num_open_sockets;
-} typedef webserver;
+} webserver;
 
 /**
  * Initializes a new webserver-object from a given hostname and port.
@@ -39,7 +39,7 @@ webserver* webserver_init(char* hostname, char* port_str);
  * @param content_length content-length predetermined as received from stream
  * @return 0 on success, -1 on error.
  */
-int parse_request(char* req_string, request *req, int content_length);
+int parse_request(char* req_string, request *req, unsigned int content_length);
 
 /**
  * Processes a GET request and fills a response object.
@@ -68,7 +68,7 @@ int webserver_process_delete(request *req, response *res, file_system *fs);
  * @param fs the filesystem to be used
  * @return 0 on success, -1 on error.
  */
-int webserver_process(char *buf, int content_length, response *res, request *req, file_system *fs);
+int webserver_process(char *buf, unsigned int content_length, response *res, request *req, file_system *fs);
 
 /**
  * Executes one lifetime-tick of the given webserver

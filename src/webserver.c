@@ -28,7 +28,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
 }
 
 // TODO: iteratively read headers into req->header->fields
-int parse_request(char* req_string, request *req, int content_length) {
+int parse_request(char* req_string, request *req, unsigned int content_length) {
     int endline_index = strstr(req_string, "\r\n") - req_string;
     char* header_line = calloc(endline_index + 1, sizeof(char)); // + 1 for '\0'
     header_line = strncpy(header_line, req_string, endline_index);
@@ -175,7 +175,7 @@ int webserver_process_delete(request *req, response *res, file_system *fs) {
 }
 
 // TODO: reduce argument coutn by removing content_length when parse_request has been updated
-int webserver_process(char *buf, int content_length, response *res, request *req, file_system *fs) {
+int webserver_process(char *buf, unsigned int content_length, response *res, request *req, file_system *fs) {
     if (parse_request(buf, req, content_length) != 0) {
         res->header->status_code = 400;
         return 0;
@@ -218,7 +218,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
         int connection_is_alive = 1;
         while (connection_is_alive) {
             char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
-            int content_length = -1;
+            unsigned int content_length = 0;
 
             int bytes_received = socket_receive_all(&in_fd, buf, MAX_DATA_SIZE, &content_length);
             if (bytes_received < 0) {
