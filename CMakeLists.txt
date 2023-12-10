@@ -18,7 +18,7 @@ add_executable(webserver src/webserver.c
         src/lib/filesystem/operations.h
 )
 
-target_compile_options (webserver PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options (webserver PRIVATE -g -Wall -Wextra -Wpedantic)
 target_link_libraries(webserver PRIVATE ${OPENSSL_LIBRARIES} -lm)
 
 # Packaging
