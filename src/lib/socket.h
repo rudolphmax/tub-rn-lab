@@ -1,12 +1,8 @@
 #ifndef RN_PRAXIS_SOCKET_H
 #define RN_PRAXIS_SOCKET_H
 
-#include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>
 #include "../webserver.h"
-#include "utils.h"
 
 #define BACKLOG_COUNT 10
 

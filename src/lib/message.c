@@ -1,15 +1,19 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include "./utils.h"
 #include "message.h"
 
 request* request_create(char *method, char *URI, char *body) {
     request_header *req_header = calloc(1, sizeof(request_header));
     req_header->method = calloc(HEADER_SPECS_LENGTH, sizeof(char));
     if (method != NULL) {
-        strcpy(req_header->method, MIN(method, HEADER_SPECS_LENGTH-1));
+        strncpy(req_header->method, method, MIN(strlen(method), HEADER_SPECS_LENGTH-1));
     }
 
     req_header->URI = calloc(HEADER_URI_LENGTH, sizeof(char));
     if (URI != NULL) {
-        strcpy(req_header->URI, MIN(URI, HEADER_URI_LENGTH-1));
+        strncpy(req_header->URI, URI, MIN(strlen(URI), HEADER_URI_LENGTH-1));
     }
 
     req_header->protocol = calloc(HEADER_SPECS_LENGTH, sizeof(char));
@@ -64,7 +68,7 @@ response *response_create(int status_code, char *status_message, char *protocol,
     res_header->num_fields = 10;
     res_header->fields = calloc(res_header->num_fields, sizeof(header_field));
 
-    request *res = calloc(1, sizeof(response));
+    response *res = calloc(1, sizeof(response));
     res->header = res_header;
 
     if (body != NULL) {
@@ -96,8 +100,7 @@ int add_header_field(void *ptr, char *name, char *value) {
     // No empty field exists, so realloc ->fields and use a new one
     int i = http_msg->header->num_fields + 1;
 
-    realloc(http_msg->header->fields, (http_msg->header->num_fields * 2) * sizeof(header_field));
-    if (http_msg->header->fields == NULL) return -1;
+    if (realloc(http_msg->header->fields, (http_msg->header->num_fields * 2) * sizeof(header_field)) == NULL) return -1;
 
     http_msg->header->num_fields *= 2; // increase num_fields if realloc was successful
 
@@ -137,7 +140,7 @@ int response_bytesize(response *res) {
         }
     }
 
-    snprintf(body_bytesize_str, 12, "%d", strlen(res->body));
+    snprintf(body_bytesize_str, 12, "%lu", strlen(res->body));
     add_header_field(res, "Content-Length", body_bytesize_str);
     free(body_bytesize_str);
 

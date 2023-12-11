@@ -1,5 +1,8 @@
 #include "utils.h"
-#include <stdio.h>
+#include <inttypes.h>
+#include <sys/errno.h>
+#include <string.h>
+
 #define DEBUG 0
 
 void debug_print(char* message) {

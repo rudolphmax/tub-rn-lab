@@ -1,13 +1,8 @@
 #ifndef RN_PRAXIS_WEBSERVER_H
 #define RN_PRAXIS_WEBSERVER_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "lib/utils.h"
 #include "lib/message.h"
 #include "lib/filesystem/filesystem.h"
-#include "lib/filesystem/operations.h"
 
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
 #define EXPECTED_NUMBER_OF_PARAMS 2

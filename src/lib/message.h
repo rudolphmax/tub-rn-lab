@@ -1,11 +1,6 @@
 #ifndef RN_PRAXIS_MESSAGE_H
 #define RN_PRAXIS_MESSAGE_H
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include "./utils.h"
-
 #define HEADER_FIELD_MAX_COUNT 100
 #define HEADER_FIELD_NAME_LENGTH 128
 #define HEADER_FIELD_VALUE_LENGTH 1024

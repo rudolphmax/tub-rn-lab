@@ -1,3 +1,6 @@
+#include <string.h>
+#include <netdb.h>
+#include "utils.h"
 #include "socket.h"
 
 int socket_accept(int *sockfd) {

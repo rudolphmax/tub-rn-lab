@@ -1,5 +1,12 @@
-#include "webserver.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include "lib/utils.h"
+#include "lib/message.h"
 #include "lib/socket.h"
+#include "lib/filesystem/operations.h"
+#include "webserver.h"
 
 webserver* webserver_init(char* hostname, char* port_str) {
     webserver *ws = calloc(1, sizeof(webserver));
