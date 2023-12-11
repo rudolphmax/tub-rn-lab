@@ -112,7 +112,7 @@ int parse_request(char *req_string, request *req) {
 
     unsigned int emptyline = strstr(req_string, "\r\n\r\n") - req_string;
 
-    unsigned int header_string_len = emptyline - (endline_index + 2);
+    int header_string_len = emptyline - (endline_index + 2);
     if (0 < header_string_len) {
         char *header_string = calloc(header_string_len+1, sizeof(char));
         strncpy(header_string, req_string + (endline_index + 2), header_string_len);
