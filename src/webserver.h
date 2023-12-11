@@ -33,13 +33,20 @@ typedef struct webserver {
 webserver* webserver_init(char* hostname, char* port_str);
 
 /**
+ * Parses header-fields from a given string into a request object.
+ * @param header_string string to be parsed.
+ * @param req request object to be filled
+ * @return 0 on success, -1 on error
+ */
+int parse_request_headers(char* header_string, request *req);
+
+/**
  * Validates the HTTP request header and fills a request object.
  * @param req_string request in string form as it came from the stream
  * @param req request object to be filled
- * @param content_length content-length predetermined as received from stream
  * @return 0 on success, -1 on error.
  */
-int parse_request(char* req_string, request *req, unsigned int content_length);
+int parse_request(char *req_string, request *req);
 
 /**
  * Processes a GET request and fills a response object.
@@ -68,7 +75,7 @@ int webserver_process_delete(request *req, response *res, file_system *fs);
  * @param fs the filesystem to be used
  * @return 0 on success, -1 on error.
  */
-int webserver_process(char *buf, unsigned int content_length, response *res, request *req, file_system *fs);
+int webserver_process(char *buf, response *res, request *req, file_system *fs);
 
 /**
  * Executes one lifetime-tick of the given webserver

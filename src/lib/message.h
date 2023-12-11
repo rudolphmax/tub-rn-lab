@@ -84,13 +84,23 @@ response *response_create(int status_code, char *status_message, char *protocol,
 int response_bytesize(response *res);
 
 /**
- * Adds a header field to the given response object.
- * @param http_msg the response object to be modified.
+ * Adds a header field to a given response or request object.
+ * @param http_msg the response/request object to be modified.
  * @param name the name of the header field (e.g.: Content-Length)
  * @param value the value of the header field (e.g.: 123)
  * @return 0 on success, -1 on error.
  */
 int add_header_field(void *http_msg, char *name, char *value);
+
+/**
+ * Determines whether a given response or request
+ * has a header-field with the given name.
+ * @param ptr the response/request object to be checked.
+ * @param name the name of the field in search
+ * @param field_index the index of the field, once found
+ * @return 1 if ptr has field, 0 if not
+ */
+int has_header_field(void *ptr, char *name, int *field_index);
 
 /**
  * Converts the given response object into a string.

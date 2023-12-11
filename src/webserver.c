@@ -27,23 +27,59 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
+int parse_request_headers(char* header_string, request *req) {
+    char *delim = "\r\n";
+    char *ptr = strtok(header_string, delim);
+
+    unsigned int field_num = 0;
+    while (NULL != ptr) {
+        // finding separating ': ' in the line
+        char *value_start = strstr(ptr, ": ") + 2;
+        if (NULL == value_start) return -1;
+
+        // determining lengths of name and value
+        int value_len = strlen(ptr) - ((value_start) - ptr);
+        int name_len = strlen(ptr) - value_len - 2;
+
+        // copying to temporaries
+        char *name = calloc(HEADER_FIELD_NAME_LENGTH, sizeof(char));
+        char *value = calloc(HEADER_FIELD_VALUE_LENGTH, sizeof(char));
+        strncpy(name, ptr, MIN(HEADER_FIELD_NAME_LENGTH-1, name_len));
+        strncpy(value, value_start, MIN(HEADER_FIELD_VALUE_LENGTH-1, value_len));
+
+        if (0 != add_header_field(req, name, value)) {
+            free(name);
+            free(value);
+            return -1;
+        }
+        free(name);
+        free(value);
+
+        ptr = strtok(NULL, delim);
+        field_num++;
+    }
+
+    return 0;
+}
+
 // TODO: iteratively read headers into req->header->fields
-int parse_request(char* req_string, request *req, unsigned int content_length) {
+int parse_request(char *req_string, request *req) {
     int endline_index = strstr(req_string, "\r\n") - req_string;
-    char* header_line = calloc(endline_index + 1, sizeof(char)); // + 1 for '\0'
-    header_line = strncpy(header_line, req_string, endline_index);
-    debug_printv("Header line:", header_line);
+    char* request_line = calloc(endline_index + 1, sizeof(char)); // + 1 for '\0'
+    request_line = strncpy(request_line, req_string, endline_index);
+
+    debug_printv("Header line:", request_line);
 
     char *delimiter = " ";
-    char *ptr = strtok(header_line, delimiter);
+    char *ptr = strtok(request_line, delimiter);
 
-    int header_field_num = 0;
+    int request_line_field_num = 0;
     while(ptr != NULL) {
         // printf("%s ", ptr);
 
         char *cpy_dest = NULL;
         int field_max_length = HEADER_SPECS_LENGTH;
-        switch (header_field_num) {
+        switch (request_line_field_num) {
             case 0:
                 cpy_dest = req->header->method;
                 break;
@@ -62,19 +98,43 @@ int parse_request(char* req_string, request *req, unsigned int content_length) {
 
         // Get next slice
         ptr = strtok(NULL, delimiter);
-        header_field_num++;
+        request_line_field_num++;
     }
-    free(header_line);
-    if (header_field_num != 3) return -1;
+    free(request_line);
 
-    // TODO: Replace this with check for content-length header when we are reading headers
-    if (string_ends_with_empty_line(req_string) != 0) { // expecting body
-        char *body = strstr(req_string, "\r\n\r\n") + strlen("\r\n\r\n");
+    if (request_line_field_num != 3) return -1;
+
+    int emptyline = strstr(req_string, "\r\n\r\n") - req_string;
+
+    int header_string_len = emptyline - (endline_index + 2);
+    if (0 < header_string_len) {
+        char *header_string = calloc(header_string_len+1, sizeof(char));
+        strncpy(header_string, req_string + (endline_index + 2), header_string_len);
+
+        if (0 != parse_request_headers(header_string, req)) {
+            free(header_string);
+            return -1;
+        }
+
+        free(header_string);
+    }
+
+    int cl_field_index = -1;
+    if (has_header_field(req, "Content-Length", &cl_field_index) == 1) {
+        char *ptr;
+        unsigned int content_length = strtol(req->header->fields[cl_field_index].value, &ptr, 10);
+
+        if (content_length == 0) return 0;
+
+        char *body = req_string + (emptyline + 4); // body starts after emptyline
 
         if (strlen(body) != content_length) {
             debug_print("Content-Length does not match body length!");
+            return -1;
         }
 
+        // TODO: Do this properly, this will always double the initial size
+        //  body is always <= 2*initial size
         // reallocating body if it's too small
         if (content_length > BODY_INITIAL_SIZE-1) { // -1 because of \0
             req->body = realloc(req->body, (2*BODY_INITIAL_SIZE) * sizeof(char));
@@ -174,9 +234,8 @@ int webserver_process_delete(request *req, response *res, file_system *fs) {
     return 0;
 }
 
-// TODO: reduce argument coutn by removing content_length when parse_request has been updated
-int webserver_process(char *buf, unsigned int content_length, response *res, request *req, file_system *fs) {
-    if (parse_request(buf, req, content_length) != 0) {
+int webserver_process(char *buf, response *res, request *req, file_system *fs) {
+    if (parse_request(buf, req) != 0) {
         res->header->status_code = 400;
         return 0;
     }
@@ -218,9 +277,8 @@ int webserver_tick(webserver *ws, file_system *fs) {
         int connection_is_alive = 1;
         while (connection_is_alive) {
             char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
-            unsigned int content_length = 0;
 
-            int bytes_received = socket_receive_all(&in_fd, buf, MAX_DATA_SIZE, &content_length);
+            int bytes_received = socket_receive_all(&in_fd, buf, MAX_DATA_SIZE);
             if (bytes_received < 0) {
                 receive_attempts_left--;
                 if (receive_attempts_left == 0) connection_is_alive = 0;
@@ -246,7 +304,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                 response *res = response_create(0, NULL, NULL, NULL);
                 if (res == NULL) perror("Error initializing response structure");
 
-                if (webserver_process(buf, content_length, res, req, fs) == 0) {
+                if (webserver_process(buf, res, req, fs) == 0) {
                     char *res_msg = response_stringify(res);
                     socket_send(&in_fd, res_msg);
                     free(res_msg);

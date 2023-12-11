@@ -42,7 +42,7 @@ int socket_send(int *sockfd, char* message);
  * @param bufsize size of buf
  * @return number of bytes received on success, -1 on error
  */
-int socket_receive_all(int *in_fd, char *buf, size_t bufsize, unsigned int* content_length);
+int socket_receive_all(int *in_fd, char *buf, size_t bufsize);
 
 /**
  * Shuts both sides of a given socket down.

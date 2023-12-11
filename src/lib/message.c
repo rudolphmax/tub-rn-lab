@@ -106,6 +106,22 @@ int add_header_field(void *ptr, char *name, char *value) {
     return 0;
 }
 
+int has_header_field(void *ptr, char *name, int *field_index) {
+    request *http_msg = ptr;
+
+    for (int i = 0; i < http_msg->header->num_fields; i++) {
+        if (strlen(http_msg->header->fields[i].name) == 0) continue;
+
+        int cmp = strncmp(http_msg->header->fields[i].name, name, HEADER_FIELD_NAME_LENGTH);
+        if (cmp != 0) continue;
+
+        if (NULL != field_index) *field_index = i;
+        return 1;
+    }
+
+    return 0;
+}
+
 int response_bytesize(response *res) {
     int size = 0;
 
