@@ -1,6 +1,8 @@
 import array
 import fcntl
+import random
 import subprocess
+import sys
 import termios
 import time
 import urllib.request
@@ -46,3 +48,10 @@ def urlopen(url):
             return urllib.request.urlopen(url)
         else:
             raise e
+
+
+if sys.version_info[:3] >= (3, 9):
+    randbytes = random.randbytes
+else:
+    def randbytes(n):
+        return bytes(random.randint(0, 255) for _ in range(n))

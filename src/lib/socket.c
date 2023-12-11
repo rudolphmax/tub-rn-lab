@@ -8,7 +8,7 @@ int socket_accept(int *sockfd) {
     return accept(*sockfd, (struct sockaddr*) &in_addr, &in_addr_size);
 }
 
-int socket_listen(webserver *ws) {
+int socket_listen(webserver *ws, int socktype) {
     if (ws->num_open_sockets >= MAX_NUM_OPEN_SOCKETS) {
         perror("Maximum number of open open_sockets reached.");
         return -1;
@@ -18,7 +18,7 @@ int socket_listen(webserver *ws) {
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_socktype = socktype;
     hints.ai_flags = AI_PASSIVE;
 
     if (getaddrinfo(ws->HOST, ws->PORT, &hints, &res) != 0) return -1;
@@ -42,24 +42,27 @@ int socket_send(int* sockfd, char* message) {
     unsigned long len = strlen(message);
     debug_printv("Sending message:", message);
 
-    long bytes_sent = 0;
+    unsigned long bytes_sent = 0;
     while (bytes_sent < len) {
-        bytes_sent += send(*sockfd, message + bytes_sent, len - bytes_sent, 0);
-        if (bytes_sent < 0) return -1;
+        int ret = send(*sockfd, message + bytes_sent, len - bytes_sent, 0);
+        if (ret < 0) return -1;
+
+        bytes_sent += ret;
     }
 
     return 0;
 }
 
-int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_length) {
-    int bytes_received = 0;
+int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
+    unsigned int bytes_received = 0;
+    unsigned int content_length = 0;
     memset(buf, 0, bufsize);
 
-    long body_size = -2;
+    long body_size = -1;
     char *empty_line = NULL;
 
     // Receiving until buffer ends with CLRF (except last byte which is \0)
-    while (empty_line == NULL || body_size < *content_length) {
+    while (empty_line == NULL || body_size < content_length) {
         if (bytes_received >= bufsize - 1) {
             perror("Buffer full before entire package read.");
             return -1;
@@ -84,17 +87,17 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_lengt
 
         // Catch existing Content-Length header and expect reading body
         char *content_length_header_line = strstr(buf, "\r\nContent-Length: ");
-        if (content_length_header_line != NULL && *content_length == -1) { // Request has content and content_length hashnt been set yet
+        if (content_length_header_line != NULL && content_length == 0) { // Request has content and content_length haven't been set yet
             char *content_length_str = content_length_header_line + 18;
-            char *ptr;
-            *content_length = strtol(content_length_str, &ptr, 10);
+
+            content_length = strtol(content_length_str, NULL, 10);
             debug_printv("Found Content-Length Header: %d", content_length_str);
             body_size = 0; // because of initial -2
         }
 
         empty_line = strstr(buf, "\r\n\r\n");
         if (empty_line != NULL) {
-            if (*content_length == -1) {
+            if (content_length == 0) {
                 break; // Found empy line and no content length header -> end of message
             } else {
                 body_size += bytes_received - ((empty_line+4) - buf);
@@ -107,7 +110,7 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize, int* content_lengt
     debug_printv("Full Message: \n------ \n", buf);
     debug_print("\n-----\n");
 
-    return 0;
+    return bytes_received;
 }
 
 int socket_shutdown(webserver *ws, int *sockfd) {

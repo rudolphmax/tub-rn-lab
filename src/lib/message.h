@@ -22,38 +22,38 @@ enum header_method {
 };
 */
 
-struct header_field {
+typedef struct header_field {
     char name[HEADER_FIELD_NAME_LENGTH];
     char value[HEADER_FIELD_VALUE_LENGTH];
-} typedef header_field;
+} header_field;
 
-struct request_header {
+typedef struct request_header {
     char* method;
     char* URI;
     char* protocol;
     // Array of header fields
-    header_field* fields;
+    struct header_field* fields;
     int num_fields;
-} typedef request_header;
+} request_header;
 
-struct response_header {
+typedef struct response_header {
     char* protocol;
     int status_code;
     char* status_message;
     // Array of header fields
-    header_field* fields;
+    struct header_field* fields;
     int num_fields;
-} typedef response_header;
+} response_header;
 
-struct request {
-    request_header *header;
+typedef struct request {
+    struct request_header *header;
     char *body;
-} typedef request;
+} request;
 
-struct response {
-    response_header *header;
+typedef struct response {
+    struct response_header *header;
     char *body;
-} typedef response;
+} response;
 
 /**
  * Creates a new empty request.
@@ -84,13 +84,23 @@ response *response_create(int status_code, char *status_message, char *protocol,
 int response_bytesize(response *res);
 
 /**
- * Adds a header field to the given response object.
- * @param http_msg the response object to be modified.
+ * Adds a header field to a given response or request object.
+ * @param http_msg the response/request object to be modified.
  * @param name the name of the header field (e.g.: Content-Length)
  * @param value the value of the header field (e.g.: 123)
  * @return 0 on success, -1 on error.
  */
 int add_header_field(void *http_msg, char *name, char *value);
+
+/**
+ * Determines whether a given response or request
+ * has a header-field with the given name.
+ * @param ptr the response/request object to be checked.
+ * @param name the name of the field in search
+ * @param field_index the index of the field, once found
+ * @return 1 if ptr has field, 0 if not
+ */
+int has_header_field(void *ptr, char *name, int *field_index);
 
 /**
  * Converts the given response object into a string.
