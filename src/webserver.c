@@ -5,7 +5,7 @@ webserver* webserver_init(char* hostname, char* port_str) {
     webserver *ws = calloc(1, sizeof(webserver));
     if (!ws) return NULL;
 
-    int port_str_len = strlen(port_str)+1; // +1 for \0
+    unsigned int port_str_len = strlen(port_str)+1; // +1 for \0
 
     ws->HOST = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
     ws->PORT = calloc(port_str_len, sizeof(char));
@@ -31,15 +31,14 @@ int parse_request_headers(char* header_string, request *req) {
     char *delim = "\r\n";
     char *ptr = strtok(header_string, delim);
 
-    unsigned int field_num = 0;
     while (NULL != ptr) {
         // finding separating ': ' in the line
         char *value_start = strstr(ptr, ": ") + 2;
         if (NULL == value_start) return -1;
 
         // determining lengths of name and value
-        int value_len = strlen(ptr) - ((value_start) - ptr);
-        int name_len = strlen(ptr) - value_len - 2;
+        unsigned int value_len = strlen(ptr) - ((value_start) - ptr);
+        unsigned int name_len = strlen(ptr) - value_len - 2;
 
         // copying to temporaries
         char *name = calloc(HEADER_FIELD_NAME_LENGTH, sizeof(char));
@@ -56,15 +55,13 @@ int parse_request_headers(char* header_string, request *req) {
         free(value);
 
         ptr = strtok(NULL, delim);
-        field_num++;
     }
 
     return 0;
 }
 
-// TODO: iteratively read headers into req->header->fields
 int parse_request(char *req_string, request *req) {
-    int endline_index = strstr(req_string, "\r\n") - req_string;
+    unsigned int endline_index = strstr(req_string, "\r\n") - req_string;
     char* request_line = calloc(endline_index + 1, sizeof(char)); // + 1 for '\0'
     request_line = strncpy(request_line, req_string, endline_index);
 
@@ -78,7 +75,7 @@ int parse_request(char *req_string, request *req) {
         // printf("%s ", ptr);
 
         char *cpy_dest = NULL;
-        int field_max_length = HEADER_SPECS_LENGTH;
+        unsigned int field_max_length = HEADER_SPECS_LENGTH;
         switch (request_line_field_num) {
             case 0:
                 cpy_dest = req->header->method;
@@ -92,6 +89,8 @@ int parse_request(char *req_string, request *req) {
             case 2:
                 cpy_dest = req->header->protocol;
                 break;
+
+            default: break;
         }
 
         strncpy(cpy_dest, ptr, MIN(strlen(ptr), field_max_length-1));
@@ -104,9 +103,9 @@ int parse_request(char *req_string, request *req) {
 
     if (request_line_field_num != 3) return -1;
 
-    int emptyline = strstr(req_string, "\r\n\r\n") - req_string;
+    unsigned int emptyline = strstr(req_string, "\r\n\r\n") - req_string;
 
-    int header_string_len = emptyline - (endline_index + 2);
+    unsigned int header_string_len = emptyline - (endline_index + 2);
     if (0 < header_string_len) {
         char *header_string = calloc(header_string_len+1, sizeof(char));
         strncpy(header_string, req_string + (endline_index + 2), header_string_len);
@@ -121,8 +120,7 @@ int parse_request(char *req_string, request *req) {
 
     int cl_field_index = -1;
     if (has_header_field(req, "Content-Length", &cl_field_index) == 1) {
-        char *ptr;
-        unsigned int content_length = strtol(req->header->fields[cl_field_index].value, &ptr, 10);
+        unsigned int content_length = strtol(req->header->fields[cl_field_index].value, NULL, 10);
 
         if (content_length == 0) return 0;
 
@@ -133,12 +131,11 @@ int parse_request(char *req_string, request *req) {
             return -1;
         }
 
-        // TODO: Do this properly, this will always double the initial size
-        //  body is always <= 2*initial size
         // reallocating body if it's too small
-        if (content_length > BODY_INITIAL_SIZE-1) { // -1 because of \0
-            req->body = realloc(req->body, (2*BODY_INITIAL_SIZE) * sizeof(char));
-            memset(req->body, 0, 2*BODY_INITIAL_SIZE);
+        if (content_length > strlen(req->body)-1) { // -1 because of \0
+            unsigned int new_size = 2*strlen(body);
+            if (realloc(req->body,new_size * sizeof(char)) == NULL) return -1;
+            memset(req->body, 0, new_size);
         }
 
         strncpy(req->body, body, content_length);
@@ -186,7 +183,7 @@ int webserver_process_put(request *req, response *res, file_system *fs) {
     int mkfile_result = fs_mkfile(fs,req->header->URI);
     target_node *tnode = fs_find_target(fs, req->header->URI);
 
-    if (mkfile_result == -1) {  //Failed to create a target
+    if (mkfile_result == -1) {  // Failed to create a target
         res->header->status_code = 400;
 
     } else if (mkfile_result == 0) {   //Successfully created the target
@@ -320,16 +317,6 @@ int webserver_tick(webserver *ws, file_system *fs) {
     }
 
     return 0;
-}
-
-void webserver_print(webserver *ws) {
-    printf("Webserver running @ %s:%u.", ws->HOST, *ws->PORT);
-    printf("%u open open_sockets: ", ws->num_open_sockets);
-
-    for (int i = 0; i < ws->num_open_sockets; i++) {
-        printf("%u", ws->open_sockets[i]);
-    }
-    printf("\n");
 }
 
 void webserver_free(webserver *ws) {

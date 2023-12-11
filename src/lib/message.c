@@ -96,7 +96,7 @@ int add_header_field(void *ptr, char *name, char *value) {
     // No empty field exists, so realloc ->fields and use a new one
     int i = http_msg->header->num_fields + 1;
 
-    http_msg->header->fields = realloc(http_msg->header->fields, (http_msg->header->num_fields * 2) * sizeof(header_field));
+    realloc(http_msg->header->fields, (http_msg->header->num_fields * 2) * sizeof(header_field));
     if (http_msg->header->fields == NULL) return -1;
 
     http_msg->header->num_fields *= 2; // increase num_fields if realloc was successful
@@ -123,7 +123,7 @@ int has_header_field(void *ptr, char *name, int *field_index) {
 }
 
 int response_bytesize(response *res) {
-    int size = 0;
+    unsigned int size = 0;
 
     size += strlen(res->header->protocol) + 1; // +1 for space
     size += 3; // status code

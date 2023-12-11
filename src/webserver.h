@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <openssl/sha.h>
 #include "lib/utils.h"
 #include "lib/message.h"
 #include "lib/filesystem/filesystem.h"
@@ -83,12 +82,6 @@ int webserver_process(char *buf, response *res, request *req, file_system *fs);
  * @return 0 on success, -1 on error
  */
 int webserver_tick(webserver *ws, file_system *fs);
-
-/**
- * Prints relevant information on the webserver-object to the console.
- * @param ws The webserver who's info is to be printed
- */
-void webserver_print(webserver *ws);
 
 /**
  * Frees the given webserver-object

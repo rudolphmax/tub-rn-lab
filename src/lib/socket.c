@@ -89,8 +89,8 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
         char *content_length_header_line = strstr(buf, "\r\nContent-Length: ");
         if (content_length_header_line != NULL && content_length == 0) { // Request has content and content_length haven't been set yet
             char *content_length_str = content_length_header_line + 18;
-            char *ptr;
-            content_length = strtol(content_length_str, &ptr, 10);
+
+            content_length = strtol(content_length_str, NULL, 10);
             debug_printv("Found Content-Length Header: %d", content_length_str);
             body_size = 0; // because of initial -2
         }
