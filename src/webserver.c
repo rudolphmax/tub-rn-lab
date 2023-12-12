@@ -258,6 +258,62 @@ int webserver_process(char *buf, response *res, request *req, file_system *fs) {
     return 0;
 }
 
+int connection_receive_to_buffer(int *in_fd, webserver *ws, file_system *fs) {
+    char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
+
+    int bytes_received = socket_receive_all(in_fd, buf, MAX_DATA_SIZE);
+    if (bytes_received < 0) {
+        if (errno == ECONNRESET || errno == EINTR || errno == ETIMEDOUT) {
+            if (socket_shutdown(ws, in_fd) != 0) {
+                perror("Socket shutdown failed.");
+            }
+
+            free(buf);
+            return -1;
+        }
+
+        perror("Socket couldn't read package.");
+
+    } else {
+        // TODO: determine type of request
+
+        request *req;
+        req = request_create(NULL, NULL, NULL);
+        if (req == NULL) perror("Error initializing request structure");
+
+        response *res = response_create(0, NULL, NULL, NULL);
+        if (res == NULL) perror("Error initializing response structure");
+
+        if (webserver_process(buf, res, req, fs) == 0) {
+            char *res_msg = response_stringify(res);
+            socket_send(in_fd, res_msg);
+            free(res_msg);
+
+        } else perror("Error processing request");
+
+        response_free(res);
+        request_free(req);
+    }
+
+    free(buf);
+    return 0;
+}
+
+void handle_connection(int *in_fd, webserver *ws, file_system *fs) {
+    int receive_attempts_left = RECEIVE_ATTEMPTS;
+    int connection_is_alive = 1;
+
+    while (connection_is_alive) {
+        if (connection_receive_to_buffer(in_fd, ws, fs) < 0) {
+            receive_attempts_left--;
+        } else {
+            receive_attempts_left = RECEIVE_ATTEMPTS;
+        }
+
+        if (receive_attempts_left == 0) connection_is_alive = 0;
+    }
+}
+
 int webserver_tick(webserver *ws, file_system *fs) {
     // TODO: Multithread with fork to accept multiple simultaneous connections
 
@@ -277,50 +333,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
             // continue;
         }
 
-        int receive_attempts_left = RECEIVE_ATTEMPTS;
-        int connection_is_alive = 1;
-        while (connection_is_alive) {
-            char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
-
-            int bytes_received = socket_receive_all(&in_fd, buf, MAX_DATA_SIZE);
-            if (bytes_received < 0) {
-                receive_attempts_left--;
-                if (receive_attempts_left == 0) connection_is_alive = 0;
-
-                if (errno == ECONNRESET || errno == EINTR || errno == ETIMEDOUT) {
-                    connection_is_alive = 0;
-
-                    if (socket_shutdown(ws, &in_fd) != 0) {
-                        perror("Socket shutdown failed.");
-                        return -1;
-                    }
-                }
-                
-                perror("Socket couldn't read package.");
-
-            } else {
-                receive_attempts_left = RECEIVE_ATTEMPTS;
-
-                request *req;
-                req = request_create(NULL, NULL, NULL);
-                if (req == NULL) perror("Error initializing request structure");
-                
-                response *res = response_create(0, NULL, NULL, NULL);
-                if (res == NULL) perror("Error initializing response structure");
-
-                if (webserver_process(buf, res, req, fs) == 0) {
-                    char *res_msg = response_stringify(res);
-                    socket_send(&in_fd, res_msg);
-                    free(res_msg);
-                
-                } else perror("Error processing request");
-                
-                response_free(res);
-                request_free(req);
-            }
-
-            free(buf);
-        }
+        handle_connection(&in_fd, ws, fs);
     }
 
     return 0;
