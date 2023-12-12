@@ -13,7 +13,7 @@
  * @param socktype socket-type corresponding to the AI_SOCKTYPE of addrinfo
  * @return 0 on success, -1 on error
  */
-int socket_listen(webserver *ws, int socktype);
+int socket_open(webserver *ws, int socktype);
 
 /**
  * Accepts connections on a given socket and fills `in_fd` with the connection's file descriptor.
@@ -29,7 +29,7 @@ int socket_accept(int *sockfd);
  * @param message the message to be sent
  * @return 0 on success, -1 on error (just like sys/send)
  */
-int socket_send(int *sockfd, char* message);
+int socket_send(webserver *ws, int *sockfd, char *message);
 
 /**
  * Receives data from an incoming socket, until CRLF is received.

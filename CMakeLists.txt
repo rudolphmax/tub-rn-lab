@@ -10,8 +10,8 @@ add_executable(webserver src/webserver.c
         src/lib/socket.h
         src/lib/utils.c
         src/lib/utils.h
-        src/lib/message.c
-        src/lib/message.h
+        src/lib/http.c
+        src/lib/http.h
         src/lib/filesystem/filesystem.c
         src/lib/filesystem/filesystem.h
         src/lib/filesystem/operations.c

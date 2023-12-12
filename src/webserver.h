@@ -1,7 +1,6 @@
 #ifndef RN_PRAXIS_WEBSERVER_H
 #define RN_PRAXIS_WEBSERVER_H
 
-#include "lib/message.h"
 #include "lib/filesystem/filesystem.h"
 
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
@@ -18,6 +17,18 @@ typedef struct webserver {
     int num_open_sockets;
 } webserver;
 
+enum connection_protocol {
+    HTTP,
+    UDP
+};
+
+typedef struct th_args {
+    int* in_fd;
+    webserver* ws;
+    file_system* fs;
+    enum connection_protocol protocol;
+} th_args;
+
 /**
  * Initializes a new webserver-object from a given hostname and port.
  * @param hostname the server hostname (IPv4)
@@ -25,51 +36,6 @@ typedef struct webserver {
  * @return A webserver object on success, NULL on error.
  */
 webserver* webserver_init(char* hostname, char* port_str);
-
-/**
- * Parses header-fields from a given string into a request object.
- * @param header_string string to be parsed.
- * @param req request object to be filled
- * @return 0 on success, -1 on error
- */
-int parse_request_headers(char* header_string, request *req);
-
-/**
- * Validates the HTTP request header and fills a request object.
- * @param req_string request in string form as it came from the stream
- * @param req request object to be filled
- * @return 0 on success, -1 on error.
- */
-int parse_request(char *req_string, request *req);
-
-/**
- * Processes a GET request and fills a response object.
- * @return 0 on success, -1 on error.
- */
-int webserver_process_get(request *req, response *res, file_system *fs);
-
-/**
- * Processes a PUT request and fills a response object.
- * @return 0 on success, -1 on error.
- */
-int webserver_process_put(request *req, response *res, file_system *fs);
-
-/**
- * Processes a DELETE request and fills a response object.
- * @return 0 on success, -1 on error.
- */
-int webserver_process_delete(request *req, response *res, file_system *fs);
-
-/**
- * Processes a request from a buffer, fills request and response objects.
- * @param buf the buffer containing the request
- * @param content_length content-length predetermined as received from stream
- * @param res the response object to be filled
- * @param req the request object to be filled
- * @param fs the filesystem to be used
- * @return 0 on success, -1 on error.
- */
-int webserver_process(char *buf, response *res, request *req, file_system *fs);
 
 /**
  * Executes one lifetime-tick of the given webserver

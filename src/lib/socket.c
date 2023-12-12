@@ -11,7 +11,7 @@ int socket_accept(int *sockfd) {
     return accept(*sockfd, (struct sockaddr*) &in_addr, &in_addr_size);
 }
 
-int socket_listen(webserver *ws, int socktype) {
+int socket_open(webserver *ws, int socktype) {
     if (ws->num_open_sockets >= MAX_NUM_OPEN_SOCKETS) {
         perror("Maximum number of open open_sockets reached.");
         return -1;
@@ -33,7 +33,10 @@ int socket_listen(webserver *ws, int socktype) {
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
     if (bind(sockfd, res->ai_addr, res->ai_addrlen) < 0) return -1;
-    listen(sockfd, BACKLOG_COUNT);
+
+    if (socktype == SOCK_STREAM) {
+        listen(sockfd, BACKLOG_COUNT);
+    }
 
     ws->open_sockets[ws->num_open_sockets] = sockfd;
     ws->num_open_sockets++;
@@ -41,13 +44,13 @@ int socket_listen(webserver *ws, int socktype) {
     return 0;
 }
 
-int socket_send(int* sockfd, char* message) {
+int socket_send(webserver *ws, int *sockfd, char *message) {
     unsigned long len = strlen(message);
     debug_printv("Sending message:", message);
 
     unsigned long bytes_sent = 0;
     while (bytes_sent < len) {
-        int ret = send(*sockfd, message + bytes_sent, len - bytes_sent, 0);
+        int ret = sendto(*sockfd, message + bytes_sent, len - bytes_sent, 0, ws->HOST, strlen(ws->HOST));
         if (ret < 0) return -1;
 
         bytes_sent += ret;
@@ -73,14 +76,16 @@ int socket_receive_all(int *in_fd, char *buf, size_t bufsize) {
 
         debug_print("Receiving data...");
         // Receiving data from stream once
-        int n_bytes = recv(
+        int n_bytes = recvfrom(
                         *in_fd,
                         // buffer[0 - bytes_received-1] is full of data,
                         // buffer[bytes_received] is where we want to continue to write (the next first byte)
                         buf + bytes_received,
                         // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
                         (bufsize-1) - bytes_received,
-                        0
+                        0,
+                        NULL,
+                        NULL
                     );
         // printf("Received %d bytes.\n", n_bytes);
 
