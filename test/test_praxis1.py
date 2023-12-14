@@ -1,46 +1,55 @@
 import contextlib
-import random
 import re
 import socket
 import time
 from http.client import HTTPConnection
 
-from util import KillOnExit
+import pytest
+
+from util import KillOnExit, randbytes
 
 
-executable = 'build/webserver'
-port = 4711
+@pytest.fixture
+def webserver(request):
+    """Return a function for webservers
+    """
+    def runner(*args, **kwargs):
+        """Spawn a webserver
+        """
+        return KillOnExit([request.config.getoption('executable'), *args], **kwargs)
+
+    return runner
 
 
-def test_execute():
+def test_execute(webserver, port):
     """
     Test server is executable
     """
 
-    with KillOnExit([executable, '127.0.0.1', f'{port}']):
+    with webserver('127.0.0.1', f'{port}'):
         pass
 
 
-def test_listen():
+def test_listen(webserver, port):
     """
     Test server is listening on port
     """
 
-    with KillOnExit(
-        [executable, '127.0.0.1', f'{port}']
+    with webserver(
+        '127.0.0.1', f'{port}'
     ), socket.create_connection(
         ('localhost', port), timeout=2
     ):
         pass
 
 
-def test_reply():
+def test_reply(webserver, port):
     """
     Test the server is sending a reply
     """
 
-    with KillOnExit(
-        [executable, '127.0.0.1', f'{port}']
+    with webserver(
+        '127.0.0.1', f'{port}'
     ), socket.create_connection(
         ('localhost', port), timeout=2
     ) as conn:
@@ -49,13 +58,13 @@ def test_reply():
         assert len(reply) > 0
 
 
-def test_packets():
+def test_packets(webserver, port):
     """
     Test HTTP delimiter for packet end
     """
 
-    with KillOnExit(
-        [executable, '127.0.0.1', f'{port}']
+    with webserver(
+        '127.0.0.1', f'{port}'
     ), socket.create_connection(
         ('localhost', port), timeout=2
     ) as conn:
@@ -70,13 +79,13 @@ def test_packets():
         assert replies[0] and replies[1] and not replies[2]
 
 
-def test_httpreply():
+def test_httpreply(webserver, port):
     """
     Test reply is syntactically correct HTTP packet
     """
 
-    with KillOnExit(
-        [executable, '127.0.0.1', f'{port}']
+    with webserver(
+        '127.0.0.1', f'{port}'
     ), socket.create_connection(
         ('localhost', port), timeout=2
     ) as conn:
@@ -84,16 +93,16 @@ def test_httpreply():
         conn.send('Request\r\n\r\n'.encode())
         time.sleep(.5)  # Attempt to gracefully handle all kinds of multi-packet replies...
         reply = conn.recv(1024)
-        assert re.search(br'HTTP/1.[01] 400.*\r\n(.*\r\n)\r\n', reply)
+        assert re.search(br'HTTP/1.[01] 400.*\r\n(.*\r\n)*\r\n', reply)
 
 
-def test_httpreplies():
+def test_httpreplies(webserver, port):
     """
     Test reply is semantically correct HTTP packet
     """
 
-    with KillOnExit(
-        [executable, '127.0.0.1', f'{port}']
+    with webserver(
+        '127.0.0.1', f'{port}'
     ), contextlib.closing(
         HTTPConnection('localhost', port, timeout=2)
     ) as conn:
@@ -110,13 +119,13 @@ def test_httpreplies():
         assert reply.status == 404
 
 
-def test_static_content():
+def test_static_content(webserver, port):
     """
     Test static content can be accessed
     """
 
-    with KillOnExit(
-        [executable, '127.0.0.1', f'{port}']
+    with webserver(
+        '127.0.0.1', f'{port}'
     ), contextlib.closing(
         HTTPConnection('localhost', port, timeout=2)
     ) as conn:
@@ -145,20 +154,20 @@ def test_static_content():
             assert reply.status == 404
 
 
-def test_dynamic_content():
+def test_dynamic_content(webserver, port):
     """
     Test dynamic storage of data (key,value) works
     """
 
-    with KillOnExit(
-        [executable, '127.0.0.1', f'{port}']
+    with webserver(
+        '127.0.0.1', f'{port}'
     ), contextlib.closing(
         HTTPConnection('localhost', port, timeout=2)
     ) as conn:
         conn.connect()
 
-        path = f'/dynamic/{random.randbytes(8).hex()}'
-        content = random.randbytes(32).hex().encode()
+        path = f'/dynamic/{randbytes(8).hex()}'
+        content = randbytes(32).hex().encode()
 
         conn.request('GET', path)
         response = conn.getresponse()

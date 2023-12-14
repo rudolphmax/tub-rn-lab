@@ -1,7 +1,5 @@
 import contextlib
-import socket
 import struct
-import sys
 import time
 import urllib.request as req
 from urllib.parse import urlparse
@@ -32,16 +30,16 @@ def _iter_with_neighbors(xs):
 def static_peer(request):
     """Return a function for spawning DHT peers
     """
-    def runner(peer, predecessor, successor):
+    def runner(peer, predecessor=None, successor=None):
         """Spawn a static DHT peer
 
         The peer is passed its local neighborhood via environment variables.
         """
         return util.KillOnExit(
-            [request.config.getoption('executable'), peer.ip, f'{peer.port}', f'{peer.id}'],
+            [request.config.getoption('executable'), peer.ip, f'{peer.port}'] + ([f'{peer.id}'] if peer.id is not None else []),
             env={
-                'PRED_ID': f'{predecessor.id}', 'PRED_IP': predecessor.ip, 'PRED_PORT': f'{predecessor.port}',
-                'SUCC_ID': f'{successor.id}', 'SUCC_IP': successor.ip, 'SUCC_PORT': f'{successor.port}',
+                **({'PRED_ID': f'{predecessor.id}', 'PRED_IP': predecessor.ip, 'PRED_PORT': f'{predecessor.port}'} if predecessor is not None else {}),
+                **({'SUCC_ID': f'{successor.id}', 'SUCC_IP': successor.ip, 'SUCC_PORT': f'{successor.port}'} if successor is not None else {}),
                 'NO_STABILIZE': '1',  # Forward compatibility with P3.
             },
         )
@@ -55,8 +53,8 @@ def test_listen(static_peer):
     Listens on UDP port.
     """
 
-    self = dht.Peer(0x0000, '127.0.0.1', 4711)
-    with static_peer(self, self, self):  # Spoof DHT neighborhood for now
+    self = dht.Peer(None, '127.0.0.1', 4711)
+    with static_peer(self):
         time.sleep(.1)
         local_udp_ports = [
             int(line.split()[1].split(':')[1], base=16)
@@ -96,7 +94,7 @@ def test_immediate_dht(static_peer, uri, timeout):
         _ = reply.read()
 
         uri_hash = dht.hash(f'/{uri}'.encode('latin1'))
-        implementation_responsible = not (self.id < uri_hash < successor.id)  # Fix off-by-one error
+        implementation_responsible = not self.id < uri_hash <= successor.id
 
         if implementation_responsible:
             assert reply.status == 404, "Server should've indicated missing data"
@@ -107,7 +105,6 @@ def test_immediate_dht(static_peer, uri, timeout):
         assert util.bytes_available(mock) == 0, "Data received on successor socket"
 
 
-# TODO swap with previous test?
 @pytest.mark.parametrize("uri", ['a', 'b'])
 def test_lookup_sent(static_peer, uri, timeout):
     """Test for lookup to correct peer
