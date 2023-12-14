@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <pthread.h>
+#include <openssl/sha.h>
 #include "lib/utils.h"
 #include "lib/http.h"
 #include "lib/socket.h"
@@ -113,12 +115,10 @@ int main(int argc, char **argv) {
     }
 
     // opening UDP Socket
-    /*
     if (socket_open(ws, SOCK_DGRAM) < 0) {
         perror("UDP Socket Creation failed.");
         exit(EXIT_FAILURE);
     }
-    */
 
     // opening TCP Socket
     if (socket_open(ws, SOCK_STREAM) < 0) {
