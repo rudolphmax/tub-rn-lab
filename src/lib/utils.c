@@ -1,7 +1,9 @@
-#include "utils.h"
 #include <inttypes.h>
 #include <sys/errno.h>
 #include <string.h>
+#include <stdlib.h>
+#include <openssl/sha.h>
+#include "utils.h"
 
 #define DEBUG 0
 
@@ -40,4 +42,11 @@ int string_ends_with_empty_line(char* str) {
     }
 
     return 0;
+}
+
+uint16_t hash(const char* str) {
+    uint8_t digest[SHA256_DIGEST_LENGTH];
+    SHA256((uint8_t *)str, strlen(str), digest);
+    
+    return htons(*((uint16_t *)digest));
 }

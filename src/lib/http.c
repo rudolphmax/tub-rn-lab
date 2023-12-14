@@ -1,5 +1,3 @@
-#include <openssl/sha.h>
-#include <pthread.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -453,15 +451,14 @@ int http_process_delete(http_request *req, http_response *res, struct file_syste
 
 /**
  * Processes a request from a buffer, fills request and response objects.
- * @param buf the buffer containing the request
  * @param content_length content-length predetermined as received from stream
  * @param res the response object to be filled
  * @param req the request object to be filled
  * @param fs the filesystem to be used
  * @return 0 on success, -1 on error.
  */
-int http_process_request(char *buf, http_response *res, http_request *req, struct file_system *fs) {
-    if (http_parse_request(buf, req) != 0) {
+int http_process_request(http_response *res, http_request *req, struct file_system *fs) {
+    if (req == NULL) {
         res->header->status_code = 400;
         return 0;
     }
@@ -501,15 +498,47 @@ int http_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
         req = request_create(NULL, NULL, NULL);
         if (req == NULL) perror("Error initializing request structure");
 
-        http_response *res = http_response_create(0, NULL, NULL, NULL);
-        if (res == NULL) perror("Error initializing response structure");
+        http_response *res = NULL;
 
-        if (http_process_request(buf, res, req, fs) == 0) {
+        if (http_parse_request(buf, req) != 0) req = NULL;
+
+        if (ws->node != NULL) {
+            uint16_t h = hash(req->header->URI);
+            if (h <= ws->node->pred->ID || h > ws->node->ID) { // This server is not responsible as a node.
+                res = http_response_create(
+                        303,
+                        "See Other",
+                        "HTTP/1.1",
+                        NULL
+                    );
+
+                unsigned int red_loc_len = 8 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
+                char *red_loc = calloc(red_loc_len, sizeof(char));
+                strcat(red_loc, "http://");
+                strcat(red_loc, ws->node->succ->IP);
+                strcat(red_loc, ":");
+                strcat(red_loc, ws->node->succ->PORT);
+                strcat(red_loc, req->header->URI);
+
+                http_add_header_field(res, "Location", red_loc);
+                http_add_header_field(res, "Content-Length", "0");
+            }
+        }
+
+        if (res == NULL) {
+            res = http_response_create(0, NULL, NULL, NULL);
+            if (http_process_request(res, req, fs) != 0) {
+                res = NULL;
+                perror("Error processing request");
+            }
+        }
+
+        if (res == NULL) perror("Error initializing response structure");
+        else {
             char *res_msg = http_response_stringify(res);
             socket_send(ws, in_fd, res_msg);
             free(res_msg);
-
-        } else perror("Error processing request");
+        }
 
         http_response_free(res);
         http_request_free(req);

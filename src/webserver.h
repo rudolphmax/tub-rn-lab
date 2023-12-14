@@ -9,12 +9,25 @@
 #define MAX_DATA_SIZE 1024
 #define RECEIVE_ATTEMPTS 1 // The amount of times the server should retry receiving from a socket if an error occurs
 
+typedef struct dht_neighbor {
+    uint16_t ID;
+    char* IP;
+    char* PORT;
+} dht_neighbor;
+
+typedef struct dht_node {
+    uint16_t ID;
+    dht_neighbor* pred;
+    dht_neighbor* succ;
+} dht_node;
+
 typedef struct webserver {
     char* HOST;
     char* PORT;
     // Array of file descriptors (int) of currently open sockets. Length: MAX_NUM_OPEN_SOCKETS
     int* open_sockets;
     int num_open_sockets;
+    dht_node *node;
 } webserver;
 
 enum connection_protocol {
