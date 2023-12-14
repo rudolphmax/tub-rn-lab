@@ -28,7 +28,7 @@ jobs:
     - name: Run tests
       uses: dariocurr/pytest-summary@main
       with:
-       paths: test/test_praxis1.py
+       paths: /test/test_praxis1.py
        options: --quiet 
        show: all
 
@@ -39,7 +39,7 @@ jobs:
     - name: Run tests
       uses: dariocurr/pytest-summary@main
       with:
-       paths: test/test_praxis2.py
+       paths: /test/test_praxis2.py
        options: --quiet 
        show: all
     
