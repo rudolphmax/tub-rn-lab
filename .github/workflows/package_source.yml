@@ -1,11 +1,15 @@
-name: C/C++ CI
+name: Create & Package Build
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_run:
+    workflows: ["Run Tests"]
+    branches: [main]
+    types: 
+      - completed
 
 jobs:
   package_source:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
