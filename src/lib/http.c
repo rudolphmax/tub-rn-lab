@@ -489,10 +489,11 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
         return 0;
     }
 
-    if (ws->node != NULL) {
+    if (ws->node != NULL) { // Server is a node in a DHT
         int d = hash(req->header->URI) - ws->node->ID;
 
-        if (0 < d && d <= ws->node->succ->ID - ws->node->ID) { // This server is not responsible as a node.
+        if (0 < d && d <= ws->node->succ->ID - ws->node->ID) { // server (/node) is not responsible for the resource
+            // -> redirect to successor
             unsigned int red_loc_len = 9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
             char *red_loc = calloc(red_loc_len, sizeof(char));
             snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT, req->header->URI);

@@ -83,14 +83,14 @@ int webserver_dht_node_init(webserver *ws, char *dht_node_id) {
     return 0;
 }
 
-void webserver_dht_node_free(webserver *ws) {
-    free(ws->node->pred->IP); // TODO: These might be invalid as the pointers come directly from the env vars -> we don't even allocate them...
-    free(ws->node->pred->PORT);
-    free(ws->node->pred);
-    free(ws->node->succ->IP);
-    free(ws->node->succ->PORT);
-    free(ws->node->succ);
-    free(ws->node);
+void webserver_dht_node_free(dht_node *node) {
+    free(node->pred->IP); // TODO: These might be invalid as the pointers come directly from the env vars -> we don't even allocate them...
+    free(node->pred->PORT);
+    free(node->pred);
+    free(node->succ->IP);
+    free(node->succ->PORT);
+    free(node->succ);
+    free(node);
 }
 
 void handle_connection(int *in_fd, enum connection_protocol protocol, webserver *ws, file_system *fs) {
@@ -144,7 +144,7 @@ void webserver_free(webserver *ws) {
     free(ws->PORT);
     free(ws->open_sockets);
 
-    if (ws->node != NULL) webserver_dht_node_free(ws);
+    if (ws->node != NULL) webserver_dht_node_free(ws->node);
 
     free(ws);
 }

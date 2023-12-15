@@ -15,6 +15,10 @@ typedef struct dht_neighbor {
     char* PORT;
 } dht_neighbor;
 
+/**
+ * This structure hold all the info the webserver needs
+ * to function as a node in a DHT.
+ */
 typedef struct dht_node {
     uint16_t ID;
     dht_neighbor* pred;
@@ -35,13 +39,6 @@ enum connection_protocol {
     UDP
 };
 
-typedef struct th_args {
-    int* in_fd;
-    webserver* ws;
-    file_system* fs;
-    enum connection_protocol protocol;
-} th_args;
-
 /**
  * Initializes a new webserver-object from a given hostname and port.
  * @param hostname the server hostname (IPv4)
@@ -49,6 +46,23 @@ typedef struct th_args {
  * @return A webserver object on success, NULL on error.
  */
 webserver* webserver_init(char* hostname, char* port_str);
+
+/**
+ * Initializes a new dht_neighbor-object from a given ID, IP and PORT.
+ * @param neighbor_id the ID of the neighbor
+ * @param neighbor_ip the IP of the neighbor
+ * @param neighbor_port the PORT of the neighbor
+ * @return A dht_neighbor object on success, NULL on error.
+ */
+dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neighbor_port);
+
+/**
+ * Initializes a new dht_node-object from a given ID.
+ * @param ws the webserver to initialize the dht_node for
+ * @param dht_node_id the ID of the webserver in the DHT (16Bit int in string-form).
+ * @return 0 on success, -1 on error
+ */
+int webserver_dht_node_init(webserver *ws, char *dht_node_id);
 
 /**
  * Executes one lifetime-tick of the given webserver
@@ -62,5 +76,11 @@ int webserver_tick(webserver *ws, file_system *fs);
  * @param ws The webserver to be freed.
  */
 void webserver_free(webserver *ws);
+
+/**
+ * Frees the given dht_node-object.
+ * @param node The dht_node to be freed.
+ */
+void webserver_dht_node_free(dht_node *node);
 
 #endif //RN_PRAXIS_WEBSERVER_H
