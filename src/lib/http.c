@@ -450,6 +450,32 @@ int http_process_delete(http_request *req, http_response *res, struct file_syste
 }
 
 /**
+ * Fill a given response object with a redirect-response.
+ * @param res The response object to be used.
+ * @param status_code The redirect's status code (has to be 3xx)
+ * @param location The location to redirect to (gets sent as header)
+ * @return 0 on success, -1 on error
+ */
+int http_redirect(http_response *res, unsigned int status_code, char *location) {
+    if (status_code < 300 || status_code > 399) return -1;
+
+    switch (status_code) {
+        case 303:
+            strcpy(res->header->status_message, "See Other");
+            break;
+
+        default:
+            return -1;
+    }
+
+    res->header->status_code = status_code;
+    http_add_header_field(res, "Content-Length", "0");
+    http_add_header_field(res, "Location", location);
+
+    return 0;
+}
+
+/**
  * Processes a request from a buffer, fills request and response objects.
  * @param content_length content-length predetermined as received from stream
  * @param res the response object to be filled
@@ -467,15 +493,11 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
         int d = hash(req->header->URI) - ws->node->ID;
 
         if (0 < d && d <= ws->node->succ->ID - ws->node->ID) { // This server is not responsible as a node.
-            res->header->status_code = 303;
-            strcpy(res->header->status_message, "See Other");
-
             unsigned int red_loc_len = 9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
             char *red_loc = calloc(red_loc_len, sizeof(char));
             snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT, req->header->URI);
 
-            http_add_header_field(res, "Location", red_loc);
-            http_add_header_field(res, "Content-Length", "0");
+            http_redirect(res, 303, red_loc);
 
             return 0;
         }
