@@ -504,7 +504,8 @@ int http_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
 
         if (ws->node != NULL) {
             uint16_t h = hash(req->header->URI);
-            if (h <= ws->node->pred->ID || h > ws->node->ID) { // This server is not responsible as a node.
+            int diff = h - ws->node->ID;
+            if (0 < diff && diff <= ws->node->succ->ID - ws->node->ID) { // This server is not responsible as a node.
                 res = http_response_create(
                         303,
                         "See Other",
