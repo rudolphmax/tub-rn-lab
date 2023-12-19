@@ -1,13 +1,8 @@
 #ifndef RN_PRAXIS_WEBSERVER_H
 #define RN_PRAXIS_WEBSERVER_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "lib/utils.h"
-#include "lib/message.h"
 #include "lib/filesystem/filesystem.h"
-#include "lib/filesystem/operations.h"
+#include <poll.h>
 
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
 #define EXPECTED_NUMBER_OF_PARAMS 2
@@ -15,12 +10,41 @@
 #define MAX_DATA_SIZE 1024
 #define RECEIVE_ATTEMPTS 1 // The amount of times the server should retry receiving from a socket if an error occurs
 
+enum connection_protocol {
+    HTTP,
+    UDP
+};
+
+typedef struct dht_neighbor {
+    uint16_t ID;
+    char* IP;
+    char* PORT;
+} dht_neighbor;
+
+/**
+ * This structure hold all the info the webserver needs
+ * to function as a node in a DHT.
+ */
+typedef struct dht_node {
+    uint16_t ID;
+    dht_neighbor* pred;
+    dht_neighbor* succ;
+} dht_node;
+
+typedef struct open_socket {
+    enum connection_protocol protocol;
+    unsigned short is_server_socket;
+} open_socket;
+
 typedef struct webserver {
     char* HOST;
     char* PORT;
     // Array of file descriptors (int) of currently open sockets. Length: MAX_NUM_OPEN_SOCKETS
-    int* open_sockets;
+    struct pollfd* open_sockets;
+    open_socket* open_sockets_config;
+    // ^ Indices of open_sockets_confiog corresponding to the open_sockets array.
     int num_open_sockets;
+    dht_node *node;
 } webserver;
 
 /**
@@ -32,49 +56,21 @@ typedef struct webserver {
 webserver* webserver_init(char* hostname, char* port_str);
 
 /**
- * Parses header-fields from a given string into a request object.
- * @param header_string string to be parsed.
- * @param req request object to be filled
+ * Initializes a new dht_neighbor-object from a given ID, IP and PORT.
+ * @param neighbor_id the ID of the neighbor
+ * @param neighbor_ip the IP of the neighbor
+ * @param neighbor_port the PORT of the neighbor
+ * @return A dht_neighbor object on success, NULL on error.
+ */
+dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neighbor_port);
+
+/**
+ * Initializes a new dht_node-object from a given ID.
+ * @param ws the webserver to initialize the dht_node for
+ * @param dht_node_id the ID of the webserver in the DHT (16Bit int in string-form).
  * @return 0 on success, -1 on error
  */
-int parse_request_headers(char* header_string, request *req);
-
-/**
- * Validates the HTTP request header and fills a request object.
- * @param req_string request in string form as it came from the stream
- * @param req request object to be filled
- * @return 0 on success, -1 on error.
- */
-int parse_request(char *req_string, request *req);
-
-/**
- * Processes a GET request and fills a response object.
- * @return 0 on success, -1 on error.
- */
-int webserver_process_get(request *req, response *res, file_system *fs);
-
-/**
- * Processes a PUT request and fills a response object.
- * @return 0 on success, -1 on error.
- */
-int webserver_process_put(request *req, response *res, file_system *fs);
-
-/**
- * Processes a DELETE request and fills a response object.
- * @return 0 on success, -1 on error.
- */
-int webserver_process_delete(request *req, response *res, file_system *fs);
-
-/**
- * Processes a request from a buffer, fills request and response objects.
- * @param buf the buffer containing the request
- * @param content_length content-length predetermined as received from stream
- * @param res the response object to be filled
- * @param req the request object to be filled
- * @param fs the filesystem to be used
- * @return 0 on success, -1 on error.
- */
-int webserver_process(char *buf, response *res, request *req, file_system *fs);
+int webserver_dht_node_init(webserver *ws, char *dht_node_id);
 
 /**
  * Executes one lifetime-tick of the given webserver
@@ -88,5 +84,11 @@ int webserver_tick(webserver *ws, file_system *fs);
  * @param ws The webserver to be freed.
  */
 void webserver_free(webserver *ws);
+
+/**
+ * Frees the given dht_node-object.
+ * @param node The dht_node to be freed.
+ */
+void webserver_dht_node_free(dht_node *node);
 
 #endif //RN_PRAXIS_WEBSERVER_H

@@ -1,5 +1,12 @@
-#include "webserver.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include "lib/utils.h"
+#include "lib/http.h"
 #include "lib/socket.h"
+#include "lib/filesystem/operations.h"
+#include "webserver.h"
 
 webserver* webserver_init(char* hostname, char* port_str) {
     webserver *ws = calloc(1, sizeof(webserver));
@@ -9,8 +16,14 @@ webserver* webserver_init(char* hostname, char* port_str) {
 
     ws->HOST = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
     ws->PORT = calloc(port_str_len, sizeof(char));
-    ws->open_sockets = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(int));
+    ws->open_sockets = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(struct pollfd));
+    ws->open_sockets_config = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(open_socket));
     ws->num_open_sockets = 0;
+
+    for (int i = 0; i < MAX_NUM_OPEN_SOCKETS; i++) {
+        ws->open_sockets[i].fd = -1;
+        ws->open_sockets_config[i].is_server_socket = 0;
+    }
 
     if (strlen(hostname)+1 > HOSTNAME_MAX_LENGTH) {
         perror("Invalid hostname");
@@ -24,295 +37,132 @@ webserver* webserver_init(char* hostname, char* port_str) {
     }
     memcpy(ws->PORT, port_str, port_str_len * sizeof(char));
 
+    ws->node = NULL;
+
     return ws;
 }
 
-int parse_request_headers(char* header_string, request *req) {
-    char *delim = "\r\n";
-    char *ptr = strtok(header_string, delim);
+dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neighbor_port) {
+    if (neighbor_port == NULL || neighbor_ip == NULL) {
+        perror("Invalid DHT IP or Port.");
+        return NULL;
+    }
 
-    while (NULL != ptr) {
-        // finding separating ': ' in the line
-        char *value_start = strstr(ptr, ": ") + 2;
-        if (NULL == value_start) return -1;
+    if (str_is_uint16(neighbor_id) < 0) {
+        perror("Invalid DHT Node ID.");
+        return NULL;
+    }
 
-        // determining lengths of name and value
-        unsigned int value_len = strlen(ptr) - ((value_start) - ptr);
-        unsigned int name_len = strlen(ptr) - value_len - 2;
+    dht_neighbor *neighbor = calloc(1, sizeof(dht_neighbor));
+    neighbor->ID = strtol(neighbor_id, NULL, 10);
+    neighbor->PORT = neighbor_port;
+    neighbor->IP = neighbor_ip;
 
-        // copying to temporaries
-        char *name = calloc(HEADER_FIELD_NAME_LENGTH, sizeof(char));
-        char *value = calloc(HEADER_FIELD_VALUE_LENGTH, sizeof(char));
-        strncpy(name, ptr, MIN(HEADER_FIELD_NAME_LENGTH-1, name_len));
-        strncpy(value, value_start, MIN(HEADER_FIELD_VALUE_LENGTH-1, value_len));
+    return neighbor;
+}
 
-        if (0 != add_header_field(req, name, value)) {
-            free(name);
-            free(value);
-            return -1;
-        }
-        free(name);
-        free(value);
+int webserver_dht_node_init(webserver *ws, char *dht_node_id) {
+    if (str_is_uint16(dht_node_id) < 0) {
+        perror("Invalid DHT Node ID.");
+        return -1;
+    }
 
-        ptr = strtok(NULL, delim);
+    ws->node = calloc(1, sizeof(dht_node));
+    ws->node->ID = strtol(dht_node_id, NULL, 10);
+
+    ws->node->pred = dht_neighbor_init(
+        getenv("PRED_ID"),
+        getenv("PRED_IP"),
+        getenv("PRED_PORT")
+        );
+    ws->node->succ = dht_neighbor_init(
+            getenv("SUCC_ID"),
+            getenv("SUCC_IP"),
+            getenv("SUCC_PORT")
+        );
+
+    if (ws->node->pred == NULL || ws->node->succ == NULL) {
+        free(ws->node);
+        return -1;
     }
 
     return 0;
 }
 
-int parse_request(char *req_string, request *req) {
-    unsigned int endline_index = strstr(req_string, "\r\n") - req_string;
-    char* request_line = calloc(endline_index + 1, sizeof(char)); // + 1 for '\0'
-    request_line = strncpy(request_line, req_string, endline_index);
-
-    debug_printv("Header line:", request_line);
-
-    char *delimiter = " ";
-    char *ptr = strtok(request_line, delimiter);
-
-    int request_line_field_num = 0;
-    while(ptr != NULL) {
-        // printf("%s ", ptr);
-
-        char *cpy_dest = NULL;
-        unsigned int field_max_length = HEADER_SPECS_LENGTH;
-        switch (request_line_field_num) {
-            case 0:
-                cpy_dest = req->header->method;
-                break;
-
-            case 1:
-                cpy_dest = req->header->URI;
-                field_max_length = HEADER_URI_LENGTH;
-                break;
-
-            case 2:
-                cpy_dest = req->header->protocol;
-                break;
-
-            default: break;
-        }
-
-        strncpy(cpy_dest, ptr, MIN(strlen(ptr), field_max_length-1));
-
-        // Get next slice
-        ptr = strtok(NULL, delimiter);
-        request_line_field_num++;
-    }
-    free(request_line);
-
-    if (request_line_field_num != 3) return -1;
-
-    unsigned int emptyline = strstr(req_string, "\r\n\r\n") - req_string;
-
-    unsigned int header_string_len = emptyline - (endline_index + 2);
-    if (0 < header_string_len) {
-        char *header_string = calloc(header_string_len+1, sizeof(char));
-        strncpy(header_string, req_string + (endline_index + 2), header_string_len);
-
-        if (0 != parse_request_headers(header_string, req)) {
-            free(header_string);
-            return -1;
-        }
-
-        free(header_string);
-    }
-
-    int cl_field_index = -1;
-    if (has_header_field(req, "Content-Length", &cl_field_index) == 1) {
-        unsigned int content_length = strtol(req->header->fields[cl_field_index].value, NULL, 10);
-
-        if (content_length == 0) return 0;
-
-        char *body = req_string + (emptyline + 4); // body starts after emptyline
-
-        if (strlen(body) != content_length) {
-            debug_print("Content-Length does not match body length!");
-            return -1;
-        }
-
-        // reallocating body if it's too small
-        if (content_length > strlen(req->body)-1) { // -1 because of \0
-            unsigned int new_size = 2*strlen(body);
-            if (realloc(req->body,new_size * sizeof(char)) == NULL) return -1;
-            memset(req->body, 0, new_size);
-        }
-
-        strncpy(req->body, body, content_length);
-    }
-
-    return 0;
+void webserver_dht_node_free(dht_node *node) {
+    free(node->pred->IP); // TODO: These might be invalid as the pointers come directly from the env vars -> we don't even allocate them...
+    free(node->pred->PORT);
+    free(node->pred);
+    free(node->succ->IP);
+    free(node->succ->PORT);
+    free(node->succ);
+    free(node);
 }
 
-int webserver_process_get(request *req, response *res, file_system *fs) {
-    // validating request URI against filesystem
-    target_node *tnode = fs_find_target(fs, req->header->URI);
+void handle_connection(int *in_fd, enum connection_protocol protocol, webserver *ws, file_system *fs) {
+    int receive_attempts_left = RECEIVE_ATTEMPTS;
+    int connection_is_alive = 1;
 
-    // the target (.../.../foo) exists
-    if (tnode == NULL) {
-        res->header->status_code = 404;
-        return 0;
+    while (connection_is_alive) {
+        int retval = -1;
+
+        if (protocol == HTTP) {
+            retval = http_handle_connection(in_fd, ws, fs);
+        } else if (protocol == UDP) {
+            // retval = udp_handle_connection(in_fd, ws, fs);
+            retval = -1;
+        }
+
+        if (retval < 0) receive_attempts_left--;
+        if (receive_attempts_left == 0) connection_is_alive = 0;
     }
-
-    res->header->status_code = 200;
-    strcpy(res->header->status_message, "Ok");
-
-    inode* target_inode = &(fs->inodes[tnode->target_index]);
-
-    if (target_inode->n_type == fil) { // target is a file not a directory
-        int file_size = 0;
-        uint8_t *file_contents = fs_readf(fs, req->header->URI, &file_size);
-
-        if (file_size > 0) memcpy(res->body, file_contents, file_size);
-
-        free(file_contents);
-    }
-
-    fs_free_target_node(tnode);
-    return 0;
-}
-
-int webserver_process_put(request *req, response *res, file_system *fs) {
-    if (strncmp(req->header->URI, "/dynamic", 8) != 0) {
-        res->header->status_code = 403;
-        strcpy(res->header->status_message, "Forbidden");
-        return 0;
-    }
-
-    //The access IS permitted
-    int mkfile_result = fs_mkfile(fs,req->header->URI);
-    target_node *tnode = fs_find_target(fs, req->header->URI);
-
-    if (mkfile_result == -1) {  // Failed to create a target
-        res->header->status_code = 400;
-
-    } else if (mkfile_result == 0) {   //Successfully created the target
-        res->header->status_code = 201;
-        strcpy(res->header->status_message, "Created");
-        fs_writef(fs,req->header->URI,req->body);
-
-    } else if (mkfile_result == -2 && fs->inodes[tnode->target_index].n_type == fil){ //Successfully overwrites the target with the correct type
-        res->header->status_code = 204;
-        strcpy(res->header->status_message, "No Content");
-        fs_rm(fs, req->header->URI); //Do I remove the entire path?
-        fs_mkfile(fs, req->header->URI);
-        fs_writef(fs,req->header->URI,req->body);
-
-    } else { //None of the above (probably unnecessary: Damian want's to leave it out, I want to keep it :P)
-        res->header->status_code = 400;
-    }
-    
-    if (tnode != NULL) fs_free_target_node(tnode);
-    return 0;
-}
-
-int webserver_process_delete(request *req, response *res, file_system *fs) {
-    target_node *tnode = fs_find_target(fs, req->header->URI);
-    
-    if (tnode == NULL) { // The file doesn't exist
-        res->header->status_code = 404;
-        strcpy(res->header->status_message, "Not Found");
-        return 0;
-    }
-
-    if (strncmp(req->header->URI, "/dynamic", 8) != 0) { // The access IS NOT permitted
-        res->header->status_code = 403;
-        strcpy(res->header->status_message, "Forbidden");
-        
-    } else if (fs->inodes[tnode->target_index].n_type == fil) {
-        if (fs_rm(fs, req->header->URI) != 0) return -1;
-
-        res->header->status_code = 204;
-        strcpy(res->header->status_message, "No Content");
-
-    } else res->header->status_code = 400;
-
-    fs_free_target_node(tnode);
-    return 0;
-}
-
-int webserver_process(char *buf, response *res, request *req, file_system *fs) {
-    if (parse_request(buf, req) != 0) {
-        res->header->status_code = 400;
-        return 0;
-    }
-
-    if (strncmp(req->header->method, "GET", 3) == 0) {
-        return webserver_process_get(req, res, fs);
-
-    } else if (strncmp(req->header->method, "PUT", 3) == 0) {
-        return webserver_process_put(req, res, fs);
-
-    } else if (strncmp(req->header->method, "DELETE", 6) == 0) {
-        return webserver_process_delete(req, res, fs);
-
-    } else res->header->status_code = 501;
-
-    return 0;
 }
 
 int webserver_tick(webserver *ws, file_system *fs) {
-    // TODO: Multithread with fork to accept multiple simultaneous connections
+    // TODO: Multithread with pthread or use poll/select to accept multiple simultaneous connections
+
+    int ready = poll(ws->open_sockets, ws->num_open_sockets, -1);
+    if (ready == -1) {
+        perror("poll");
+        exit(EXIT_FAILURE);
+    }
 
     // Deciding what to do for each open socket - are they listening or not?
     for (int i = 0; i < ws->num_open_sockets; i++) {
-        int *sockfd = &(ws->open_sockets[i]);
+        struct pollfd *sock = &(ws->open_sockets[i]);
+        open_socket *sock_config = &(ws->open_sockets_config[i]);
+        if (sock->revents != POLLIN) continue;
 
-        // TODO: Which socket-fds do we actually need? Which one does what?
-        int in_fd = socket_accept(sockfd);
-        if (in_fd < 0) {
-            if (errno != EINVAL) {
-                perror("Socket failed to accept.");
-                continue;
-            }
-            // else: accept failed because socket is unwilling to listen.
-            // Handle non-listening sockets here
-            // continue;
-        }
+        if (sock_config->is_server_socket == 1) { // sock is a server socket -> accept a connection
+            enum connection_protocol protocol = HTTP;
 
-        int receive_attempts_left = RECEIVE_ATTEMPTS;
-        int connection_is_alive = 1;
-        while (connection_is_alive) {
-            char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
-
-            int bytes_received = socket_receive_all(&in_fd, buf, MAX_DATA_SIZE);
-            if (bytes_received < 0) {
-                receive_attempts_left--;
-                if (receive_attempts_left == 0) connection_is_alive = 0;
-
-                if (errno == ECONNRESET || errno == EINTR || errno == ETIMEDOUT) {
-                    connection_is_alive = 0;
-
-                    if (socket_shutdown(ws, &in_fd) != 0) {
-                        perror("Socket shutdown failed.");
-                        return -1;
-                    }
+            int in_fd = socket_accept(&(sock->fd));
+            if (in_fd < 0) {
+                if (errno != EINVAL && errno != EOPNOTSUPP) {
+                    perror("Socket failed to accept.");
+                    continue;
                 }
-                
-                perror("Socket couldn't read package.");
 
-            } else {
-                receive_attempts_left = RECEIVE_ATTEMPTS;
-
-                request *req;
-                req = request_create(NULL, NULL, NULL);
-                if (req == NULL) perror("Error initializing request structure");
-                
-                response *res = response_create(0, NULL, NULL, NULL);
-                if (res == NULL) perror("Error initializing response structure");
-
-                if (webserver_process(buf, res, req, fs) == 0) {
-                    char *res_msg = response_stringify(res);
-                    socket_send(&in_fd, res_msg);
-                    free(res_msg);
-                
-                } else perror("Error processing request");
-                
-                response_free(res);
-                request_free(req);
+                // Dealing with a non-connective protocol - assumed to be UDP here.
+                in_fd = sock->fd;
+                protocol = UDP;
             }
 
-            free(buf);
+            for (int j = 0; j < MAX_NUM_OPEN_SOCKETS; j++) {
+                if (ws->open_sockets[j].fd == -1) {
+                    sock->events = 0;
+                    ws->open_sockets[j].fd = in_fd;
+                    ws->open_sockets[j].events = POLLIN;
+                    ws->open_sockets_config[j].protocol = protocol;
+                    ws->num_open_sockets++;
+                    break;
+                }
+            }
+
+            continue;
+
+        } else { // sock is a client socket -> to handle the connection
+            handle_connection(&(sock->fd), sock_config->protocol, ws, fs);
         }
     }
 
@@ -323,12 +173,15 @@ void webserver_free(webserver *ws) {
     free(ws->HOST);
     free(ws->PORT);
     free(ws->open_sockets);
+
+    if (ws->node != NULL) webserver_dht_node_free(ws->node);
+
     free(ws);
 }
 
 int main(int argc, char **argv) {
-    if (argc != EXPECTED_NUMBER_OF_PARAMS + 1) {
-        perror("Wrong number of args. Usage: ./webserver {ip} {port}");
+    if (argc != EXPECTED_NUMBER_OF_PARAMS + 1 && argc != EXPECTED_NUMBER_OF_PARAMS + 2) {
+        perror("Wrong number of args. Usage: ./webserver {ip} {port} {optional: dht_node_id}");
         exit(EXIT_FAILURE);
     }
 
@@ -351,15 +204,19 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    // opening TCP Socket
-    if (socket_listen(ws, SOCK_STREAM) < 0) {
-        perror("TCP Socket Creation failed.");
-        exit(EXIT_FAILURE);
+    if (argc == 4) { // expecting dht-node-id
+        webserver_dht_node_init(ws, argv[3]);
     }
 
     // opening UDP Socket
-    if (socket_listen(ws, SOCK_DGRAM) < 0) {
+    if (socket_open(ws, SOCK_DGRAM) < 0) {
         perror("UDP Socket Creation failed.");
+        exit(EXIT_FAILURE);
+    }
+
+    // opening TCP Socket
+    if (socket_open(ws, SOCK_STREAM) < 0) {
+        perror("TCP Socket Creation failed.");
         exit(EXIT_FAILURE);
     }
 
