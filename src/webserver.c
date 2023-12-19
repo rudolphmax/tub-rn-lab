@@ -16,8 +16,14 @@ webserver* webserver_init(char* hostname, char* port_str) {
 
     ws->HOST = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
     ws->PORT = calloc(port_str_len, sizeof(char));
-    ws->open_sockets = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(int));
+    ws->open_sockets = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(struct pollfd));
+    ws->open_sockets_config = calloc(MAX_NUM_OPEN_SOCKETS, sizeof(open_socket));
     ws->num_open_sockets = 0;
+
+    for (int i = 0; i < MAX_NUM_OPEN_SOCKETS; i++) {
+        ws->open_sockets[i].fd = -1;
+        ws->open_sockets_config[i].is_server_socket = 0;
+    }
 
     if (strlen(hostname)+1 > HOSTNAME_MAX_LENGTH) {
         perror("Invalid hostname");
@@ -115,25 +121,49 @@ void handle_connection(int *in_fd, enum connection_protocol protocol, webserver 
 int webserver_tick(webserver *ws, file_system *fs) {
     // TODO: Multithread with pthread or use poll/select to accept multiple simultaneous connections
 
+    int ready = poll(ws->open_sockets, ws->num_open_sockets, -1);
+    if (ready == -1) {
+        perror("poll");
+        exit(EXIT_FAILURE);
+    }
+
     // Deciding what to do for each open socket - are they listening or not?
     for (int i = 0; i < ws->num_open_sockets; i++) {
-        int *sockfd = &(ws->open_sockets[i]);
+        struct pollfd *sock = &(ws->open_sockets[i]);
+        open_socket *sock_config = &(ws->open_sockets_config[i]);
+        if (sock->revents != POLLIN) continue;
 
-        enum connection_protocol protocol = HTTP;
+        if (sock_config->is_server_socket == 1) { // sock is a server socket -> accept a connection
+            enum connection_protocol protocol = HTTP;
 
-        int in_fd = socket_accept(sockfd);
-        if (in_fd < 0) {
-            if (errno != EINVAL && errno != EOPNOTSUPP) {
-                perror("Socket failed to accept.");
-                continue;
+            int in_fd = socket_accept(&(sock->fd));
+            if (in_fd < 0) {
+                if (errno != EINVAL && errno != EOPNOTSUPP) {
+                    perror("Socket failed to accept.");
+                    continue;
+                }
+
+                // Dealing with a non-connective protocol - assumed to be UDP here.
+                in_fd = sock->fd;
+                protocol = UDP;
             }
 
-            // Dealing with a non-connective protocol - assumed to be UDP here.
-            in_fd = *sockfd;
-            protocol = UDP;
-        }
+            for (int j = 0; j < MAX_NUM_OPEN_SOCKETS; j++) {
+                if (ws->open_sockets[j].fd == -1) {
+                    sock->events = 0;
+                    ws->open_sockets[j].fd = in_fd;
+                    ws->open_sockets[j].events = POLLIN;
+                    ws->open_sockets_config[j].protocol = protocol;
+                    ws->num_open_sockets++;
+                    break;
+                }
+            }
 
-        handle_connection(&in_fd, protocol, ws, fs);
+            continue;
+
+        } else { // sock is a client socket -> to handle the connection
+            handle_connection(&(sock->fd), sock_config->protocol, ws, fs);
+        }
     }
 
     return 0;

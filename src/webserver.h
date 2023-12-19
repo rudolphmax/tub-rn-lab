@@ -2,12 +2,18 @@
 #define RN_PRAXIS_WEBSERVER_H
 
 #include "lib/filesystem/filesystem.h"
+#include <poll.h>
 
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
 #define EXPECTED_NUMBER_OF_PARAMS 2
 #define MAX_NUM_OPEN_SOCKETS 10
 #define MAX_DATA_SIZE 1024
 #define RECEIVE_ATTEMPTS 1 // The amount of times the server should retry receiving from a socket if an error occurs
+
+enum connection_protocol {
+    HTTP,
+    UDP
+};
 
 typedef struct dht_neighbor {
     uint16_t ID;
@@ -25,19 +31,21 @@ typedef struct dht_node {
     dht_neighbor* succ;
 } dht_node;
 
+typedef struct open_socket {
+    enum connection_protocol protocol;
+    unsigned short is_server_socket;
+} open_socket;
+
 typedef struct webserver {
     char* HOST;
     char* PORT;
     // Array of file descriptors (int) of currently open sockets. Length: MAX_NUM_OPEN_SOCKETS
-    int* open_sockets;
+    struct pollfd* open_sockets;
+    open_socket* open_sockets_config;
+    // ^ Indices of open_sockets_confiog corresponding to the open_sockets array.
     int num_open_sockets;
     dht_node *node;
 } webserver;
-
-enum connection_protocol {
-    HTTP,
-    UDP
-};
 
 /**
  * Initializes a new webserver-object from a given hostname and port.

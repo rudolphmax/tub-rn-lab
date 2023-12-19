@@ -36,9 +36,14 @@ int socket_open(webserver *ws, int socktype) {
 
     if (socktype == SOCK_STREAM) {
         listen(sockfd, BACKLOG_COUNT);
+        ws->open_sockets_config[ws->num_open_sockets].protocol = 0;
+    } else {
+        ws->open_sockets_config[ws->num_open_sockets].protocol = 1;
     }
 
-    ws->open_sockets[ws->num_open_sockets] = sockfd;
+    ws->open_sockets[ws->num_open_sockets].fd = sockfd;
+    ws->open_sockets[ws->num_open_sockets].events = POLLIN;
+    ws->open_sockets_config[ws->num_open_sockets].is_server_socket = 1;
     ws->num_open_sockets++;
     freeaddrinfo(res);
     return 0;
@@ -128,8 +133,11 @@ int socket_shutdown(webserver *ws, int *sockfd) {
 
     // remove socket from open_socket list
     for (int i = 0; i < MAX_NUM_OPEN_SOCKETS; i++) {
-        if (ws->open_sockets[i] == *sockfd) {
-            ws->open_sockets[i] = 0;
+        if (ws->open_sockets[i].fd == *sockfd) {
+            ws->open_sockets[i].fd = -1;
+            ws->open_sockets[i].events = 0;
+            ws->open_sockets_config[i].is_server_socket = 0;
+            ws->num_open_sockets--;
             debug_print("Shutting down socket...");
         }
     }
