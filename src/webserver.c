@@ -163,6 +163,17 @@ int webserver_tick(webserver *ws, file_system *fs) {
 
         } else { // sock is a client socket -> to handle the connection
             handle_connection(&(sock->fd), sock_config->protocol, ws, fs);
+
+            // Finding corresponding server-socket and re-enabling it
+            for (int j = 0; j < ws->num_open_sockets; j++) {
+                if (ws->open_sockets_config[j].protocol == sock_config->protocol && ws->open_sockets_config[j].is_server_socket == 1) {
+                    ws->open_sockets[j].events = POLLIN;
+                    break;
+                }
+            }
+
+            // Disabling the client socket
+            sock->events = 0;
         }
     }
 
