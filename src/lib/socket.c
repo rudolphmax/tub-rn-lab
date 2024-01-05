@@ -49,9 +49,8 @@ int socket_open(webserver *ws, int socktype) {
     return 0;
 }
 
-int socket_send(webserver *ws, int *sockfd, char *message, char *dest_ip, char *dest_port) {
-    unsigned long len = strlen(message);
-    debug_printv("Sending message:", message);
+int socket_send(webserver *ws, int *sockfd, char *msg, unsigned int msg_len, char *dest_ip, char *dest_port) {
+    debug_printv("Sending message:", msg);
 
     if (dest_ip == NULL) dest_ip = ws->HOST;
     if (dest_port == NULL) dest_port = ws->PORT;
@@ -65,8 +64,8 @@ int socket_send(webserver *ws, int *sockfd, char *message, char *dest_ip, char *
     if (getaddrinfo(dest_ip, dest_port, &hints, &res) != 0) return -1;
 
     unsigned long bytes_sent = 0;
-    while (bytes_sent < len) {
-        int ret = sendto(*sockfd, message + bytes_sent, len - bytes_sent, 0, res->ai_addr, res->ai_addrlen);
+    while (bytes_sent < msg_len) {
+        int ret = sendto(*sockfd, msg + bytes_sent, msg_len - bytes_sent, 0, res->ai_addr, res->ai_addrlen);
         if (ret < 0) return -1;
 
         bytes_sent += ret;

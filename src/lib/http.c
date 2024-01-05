@@ -506,8 +506,7 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
 
         if (succ_responsible == 1) {
             // -> redirect to successor
-            unsigned int red_loc_len =
-                    9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
+            unsigned int red_loc_len = 9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
             char *red_loc = calloc(red_loc_len, sizeof(char));
             snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT,
                      req->header->URI);
@@ -579,7 +578,7 @@ int http_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
 
         if (http_process_request(ws, res, req, fs) == 0) {
             char *res_msg = http_response_stringify(res);
-            socket_send(ws, in_fd, res_msg, NULL, 0);
+            socket_send(ws, in_fd, res_msg, strlen(res_msg), NULL, 0);
             free(res_msg);
 
         } else perror("Error processing request");

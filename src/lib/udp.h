@@ -5,13 +5,13 @@
 #include "../webserver.h"
 #include "socket.h"
 
-// TODO: Might need to fix this type for conversion to byte-array
 typedef struct udp_packet {
     uint8_t type;
     uint16_t hash;
     uint16_t node_id;
     char* node_ip;
-    char* node_port;
+    uint16_t node_port;
+    unsigned int bytesize;
 } udp_packet;
 
 /**
