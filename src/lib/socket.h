@@ -25,11 +25,14 @@ int socket_accept(int *sockfd);
 
 /**
  * Accepts connections on a given socket and fills `in_fd` with the connection's file descriptor.
+ * @param ws this webserver
  * @param sockfd accepting socket's file descriptor
- * @param message the message to be sent
+ * @param msg the message to be sent
+ * @param dest_ip the destination address
+ * @param dest_port the destination port
  * @return 0 on success, -1 on error (just like sys/send)
  */
-int socket_send(webserver *ws, int *sockfd, char *message);
+int socket_send(webserver *ws, int *sockfd, char *msg, unsigned int msg_len, char *dest_ip, char *dest_port);
 
 /**
  * Receives data from an incoming socket, until CRLF is received.

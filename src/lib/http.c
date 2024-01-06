@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "utils.h"
 #include "http.h"
+#include "udp.h"
 #include "filesystem/operations.h"
 #include "socket.h"
 
@@ -490,16 +491,48 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
     }
 
     if (ws->node != NULL) { // Server is a node in a DHT
-        int d = hash(req->header->URI) - ws->node->ID;
+        unsigned short self_responsible = 0;
+        unsigned short succ_responsible = 0;
 
-        if (0 < d && d <= ws->node->succ->ID - ws->node->ID) { // server (/node) is not responsible for the resource
+        int h = hash(req->header->URI);
+
+        if (ws->node->pred->ID > ws->node->ID) {
+            if (ws->node->ID >= h || ws->node->pred->ID < h) self_responsible = 1;
+        } else if (ws->node->ID >= h && ws->node->pred->ID < h) self_responsible = 1;
+
+        if (ws->node->ID > ws->node->succ->ID) {
+            if (h <= ws->node->succ->ID || h > ws->node->ID) succ_responsible = 1;
+        } else if (ws->node->succ->ID >= h && ws->node->ID < h) succ_responsible = 1;
+
+        if (succ_responsible == 1) {
             // -> redirect to successor
             unsigned int red_loc_len = 9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
             char *red_loc = calloc(red_loc_len, sizeof(char));
-            snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT, req->header->URI);
+            snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT,
+                     req->header->URI);
 
             http_redirect(res, 303, red_loc);
+            return 0;
 
+        } else if (self_responsible == 0) {
+            // TODO: Check if the mistakes are here (may be)
+            int udp_sock = -1;
+            for (int i = 0; i < ws->num_open_sockets; i++) {
+                if (ws->open_sockets_config[i].is_server_socket == 0 || ws->open_sockets_config[i].protocol != 1) continue;
+
+                udp_sock = ws->open_sockets[i].fd;
+            }
+            if (udp_sock == -1) return -1;
+
+            udp_packet *packet = udp_packet_create(0, h, ws->node->ID, ws->HOST, ws->PORT);
+            if (udp_send_to_node(ws, &udp_sock, packet, ws->node->succ) < 0) {
+                perror("Error sending to node.");
+            }
+            udp_packet_free(packet);
+
+            strcpy(res->header->status_message, "Service Unavailable");
+            res->header->status_code = 503;
+            http_add_header_field(res, "Retry-After", "1");
             return 0;
         }
     }
@@ -545,7 +578,7 @@ int http_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
 
         if (http_process_request(ws, res, req, fs) == 0) {
             char *res_msg = http_response_stringify(res);
-            socket_send(ws, in_fd, res_msg);
+            socket_send(ws, in_fd, res_msg, strlen(res_msg), NULL, 0);
             free(res_msg);
 
         } else perror("Error processing request");

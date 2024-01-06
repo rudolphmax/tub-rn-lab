@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 0; i < ws->num_open_sockets; i++) {
-        int *sockfd = &(ws->open_sockets[i]);
+        int *sockfd = &(ws->open_sockets[i]).fd;
         socket_shutdown(NULL, sockfd);
     }
 

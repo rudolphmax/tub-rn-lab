@@ -12,6 +12,8 @@ add_executable(webserver src/webserver.c
         src/lib/utils.h
         src/lib/http.c
         src/lib/http.h
+        src/lib/udp.c
+        src/lib/udp.h
         src/lib/filesystem/filesystem.c
         src/lib/filesystem/filesystem.h
         src/lib/filesystem/operations.c
