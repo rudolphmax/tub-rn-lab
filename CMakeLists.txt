@@ -4,20 +4,23 @@ set (CMAKE_C_STANDARD 11)
 
 find_package(OpenSSL REQUIRED)
 
-add_executable(webserver src/webserver.c
-        src/webserver.h
-        src/lib/socket.c
-        src/lib/socket.h
-        src/lib/utils.c
-        src/lib/utils.h
-        src/lib/http.c
-        src/lib/http.h
-        src/lib/udp.c
-        src/lib/udp.h
-        src/lib/filesystem/filesystem.c
-        src/lib/filesystem/filesystem.h
-        src/lib/filesystem/operations.c
-        src/lib/filesystem/operations.h
+add_executable(webserver
+  src/webserver.c
+  src/webserver.h
+  src/lib/udp.c
+  src/lib/udp.h
+  src/lib/socket.c
+  src/lib/socket.h
+  src/lib/utils.c
+  src/lib/utils.h
+  src/lib/http.c
+  src/lib/http.h
+  src/lib/udp.c
+  src/lib/udp.h
+  src/lib/filesystem/filesystem.c
+  src/lib/filesystem/filesystem.h
+  src/lib/filesystem/operations.c
+  src/lib/filesystem/operations.h
 )
 
 target_compile_options (webserver PRIVATE -g -Wall -Wextra -Wpedantic)

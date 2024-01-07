@@ -494,7 +494,7 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
 
     unsigned short responsibility;
     if (ws->node == NULL) responsibility = 1;
-    else responsibility = webserver_dht_node_is_responsible(ws->node, h);
+    else responsibility = dht_node_is_responsible(ws->node, h);
 
     if (responsibility == 1) {
         if (strncmp(req->header->method, "GET", 3) == 0) {
