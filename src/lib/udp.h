@@ -47,6 +47,6 @@ int udp_send_to_node(webserver *ws, int *sockfd, udp_packet *packet, dht_neighbo
  * @param fs File System object. // TODO: Do we need this?
  * @return 0 on success, -1 on error.
  */
-int udp_handle_connection(int *in_fd, webserver *ws, file_system *fs);
+int udp_handle_connection(int *in_fd, webserver *ws);
 
 #endif //RN_PRAXIS_UDP_H

@@ -53,7 +53,7 @@ void handle_connection(int *in_fd, enum connection_protocol protocol, webserver 
         if (protocol == HTTP) {
             retval = http_handle_connection(in_fd, ws, fs);
         } else if (protocol == UDP) {
-            retval = udp_handle_connection(in_fd, ws, fs);
+            retval = udp_handle_connection(in_fd, ws);
         }
 
         if (retval < 0) receive_attempts_left--;

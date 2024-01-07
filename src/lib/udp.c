@@ -29,7 +29,7 @@ udp_packet* udp_packet_create(unsigned short type, uint16_t hash, uint16_t node_
 }
 
 char* udp_packet_stringify(udp_packet *pkt) {
-    uint16_t t = htons(pkt->type);
+    //uint16_t t = htons(pkt->type);
     uint16_t h = htons(pkt->hash);
     uint16_t id = htons(pkt->node_id);
     uint32_t ip = inet_addr(pkt->node_ip);
@@ -38,7 +38,7 @@ char* udp_packet_stringify(udp_packet *pkt) {
     pkt->bytesize = 11;
     char *msg = calloc(pkt->bytesize, sizeof(char));
 
-    memcpy(msg, &t, 1);
+    memcpy(msg, &(pkt->type), 1);
     memcpy(msg + 1, &h, 2);
     memcpy(msg + 3, &id, 2);
     memcpy(msg + 5, &ip, 4);
@@ -90,11 +90,37 @@ int udp_parse_packet(char *pkt_string, udp_packet *pkt) {
 }
 
 int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) {
+    if (pkt_in == NULL) return -1;
+
+    unsigned short responsibility;
+    if (ws->node == NULL) responsibility = 1;
+    else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
+
+    if (responsibility == 0) { // -> forward lookup to successor
+        return -1;
+    }
+
+    pkt_out->type = 1;
+    pkt_out->hash = ws->node->ID;
+
+    if (responsibility == 1) {
+        pkt_out->node_id = ws->node->ID;
+        pkt_out->node_ip = ws->HOST;
+        pkt_out->node_port = strtol(ws->PORT, NULL, 10);
+        return 0;
+
+    } else if (responsibility == 2) {
+        pkt_out->node_id = ws->node->succ->ID;
+        pkt_out->node_ip = ws->node->succ->IP;
+        pkt_out->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+        return 0;
+    }
+
     return -1;
 }
 
 // TODO: Poor naming as UDP is not connection-based
-int udp_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
+int udp_handle_connection(int *in_fd, webserver *ws) {
     char *buf = calloc(MAX_DATA_SIZE, sizeof(char)); // TODO: Update MAX_DATA_SIZE for UDP (pkt-size is fixed after all)
 
     // TODO: refactor this into combined function in socket (ideally)
@@ -133,10 +159,12 @@ int udp_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
 
     if (udp_process_packet(ws, pkt_out, pkt_in) == 0) {
         char *res_msg = udp_packet_stringify(pkt_out);
-        socket_send(ws, in_fd, res_msg, strlen(res_msg), NULL, 0);
-        free(res_msg);
 
-    } else perror("Error processing packet.");
+        char *port_str = calloc(7, sizeof(char));
+        snprintf(port_str, 6, "%d", pkt_in->node_port);
+        socket_send(ws, in_fd, res_msg, pkt_out->bytesize, pkt_in->node_ip, port_str);
+        free(res_msg);
+    }
 
     udp_packet_free(pkt_in);
     udp_packet_free(pkt_out);
