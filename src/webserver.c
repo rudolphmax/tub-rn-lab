@@ -4,6 +4,7 @@
 #include <errno.h>
 #include "lib/utils.h"
 #include "lib/http.h"
+#include "lib/udp.h"
 #include "lib/socket.h"
 #include "lib/filesystem/operations.h"
 #include "webserver.h"
@@ -121,8 +122,7 @@ void handle_connection(int *in_fd, enum connection_protocol protocol, webserver 
         if (protocol == HTTP) {
             retval = http_handle_connection(in_fd, ws, fs);
         } else if (protocol == UDP) {
-            // retval = udp_handle_connection(in_fd, ws, fs);
-            retval = -1;
+            retval = udp_handle_connection(in_fd, ws, fs);
         }
 
         if (retval < 0) receive_attempts_left--;
@@ -173,7 +173,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
 
             continue;
 
-        } else { // sock is a client socket -> to handle the connection
+        } else { // sock is a client socket -> handle the connection
             handle_connection(&(sock->fd), sock_config->protocol, ws, fs);
 
             // Finding corresponding server-socket and re-enabling it

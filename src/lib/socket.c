@@ -6,7 +6,7 @@
 int socket_accept(int *sockfd) {
     struct sockaddr_storage in_addr;
     socklen_t in_addr_size = sizeof(in_addr);
-    debug_print("Accepting connection...");
+    // debug_print("Accepting connection...");
 
     return accept(*sockfd, (struct sockaddr*) &in_addr, &in_addr_size);
 }
