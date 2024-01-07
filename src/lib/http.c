@@ -490,65 +490,59 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
         return 0;
     }
 
-    if (ws->node != NULL) { // Server is a node in a DHT
-        unsigned short self_responsible = 0;
-        unsigned short succ_responsible = 0;
+    int h = hash(req->header->URI);
 
-        int h = hash(req->header->URI);
+    unsigned short responsibility;
+    if (ws->node == NULL) responsibility = 1;
+    else responsibility = webserver_dht_node_is_responsible(ws->node, h);
 
-        if (ws->node->pred->ID > ws->node->ID) {
-            if (ws->node->ID >= h || ws->node->pred->ID < h) self_responsible = 1;
-        } else if (ws->node->ID >= h && ws->node->pred->ID < h) self_responsible = 1;
+    if (responsibility == 1) {
+        if (strncmp(req->header->method, "GET", 3) == 0) {
+            return http_process_get(req, res, fs);
 
-        if (ws->node->ID > ws->node->succ->ID) {
-            if (h <= ws->node->succ->ID || h > ws->node->ID) succ_responsible = 1;
-        } else if (ws->node->succ->ID >= h && ws->node->ID < h) succ_responsible = 1;
+        } else if (strncmp(req->header->method, "PUT", 3) == 0) {
+            return http_process_put(req, res, fs);
 
-        if (succ_responsible == 1) {
-            // -> redirect to successor
-            unsigned int red_loc_len = 9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
-            char *red_loc = calloc(red_loc_len, sizeof(char));
-            snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT,
-                     req->header->URI);
+        } else if (strncmp(req->header->method, "DELETE", 6) == 0) {
+            return http_process_delete(req, res, fs);
 
-            http_redirect(res, 303, red_loc);
-            return 0;
+        } else res->header->status_code = 501;
 
-        } else if (self_responsible == 0) {
-            // TODO: Check if the mistakes are here (may be)
-            int udp_sock = -1;
-            for (int i = 0; i < ws->num_open_sockets; i++) {
-                if (ws->open_sockets_config[i].is_server_socket == 0 || ws->open_sockets_config[i].protocol != 1) continue;
-
-                udp_sock = ws->open_sockets[i].fd;
-            }
-            if (udp_sock == -1) return -1;
-
-            udp_packet *packet = udp_packet_create(0, h, ws->node->ID, ws->HOST, ws->PORT);
-            if (udp_send_to_node(ws, &udp_sock, packet, ws->node->succ) < 0) {
-                perror("Error sending to node.");
-            }
-            udp_packet_free(packet);
-
-            strcpy(res->header->status_message, "Service Unavailable");
-            res->header->status_code = 503;
-            http_add_header_field(res, "Retry-After", "1");
-            return 0;
-        }
+        return 0;
     }
 
-    if (strncmp(req->header->method, "GET", 3) == 0) {
-        return http_process_get(req, res, fs);
+    if (responsibility == 2) { // -> redirect to successor
+        unsigned int red_loc_len = 9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
+        char *red_loc = calloc(red_loc_len, sizeof(char));
+        snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT,
+                 req->header->URI);
 
-    } else if (strncmp(req->header->method, "PUT", 3) == 0) {
-        return http_process_put(req, res, fs);
+        http_redirect(res, 303, red_loc);
+        return 0;
+    }
 
-    } else if (strncmp(req->header->method, "DELETE", 6) == 0) {
-        return http_process_delete(req, res, fs);
+    if (responsibility == 0) { // -> send lookup into DHT, the responsible node is unknown
+        int udp_sock = -1;
+        for (int i = 0; i < ws->num_open_sockets; i++) {
+            if (ws->open_sockets_config[i].is_server_socket == 0 || ws->open_sockets_config[i].protocol != 1) continue;
 
-    } else res->header->status_code = 501;
+            udp_sock = ws->open_sockets[i].fd;
+        }
+        if (udp_sock == -1) return -1;
 
-    return 0;
+        udp_packet *packet = udp_packet_create(0, h, ws->node->ID, ws->HOST, ws->PORT);
+        if (udp_send_to_node(ws, &udp_sock, packet, ws->node->succ) < 0) {
+            perror("Error sending to node.");
+        }
+        udp_packet_free(packet);
+
+        strcpy(res->header->status_message, "Service Unavailable");
+        res->header->status_code = 503;
+        http_add_header_field(res, "Retry-After", "1");
+        return 0;
+    }
+
+    return -1;
 }
 
 int http_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
@@ -567,25 +561,25 @@ int http_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
         perror("Socket couldn't read package.");
         return -1;
 
-    } else {
-        http_request *req;
-        req = request_create(NULL, NULL, NULL);
-        if (req == NULL) perror("Error initializing request structure");
-
-        http_response *res = http_response_create(0, NULL, NULL, NULL);
-
-        if (http_parse_request(buf, req) != 0) req = NULL;
-
-        if (http_process_request(ws, res, req, fs) == 0) {
-            char *res_msg = http_response_stringify(res);
-            socket_send(ws, in_fd, res_msg, strlen(res_msg), NULL, 0);
-            free(res_msg);
-
-        } else perror("Error processing request");
-
-        http_response_free(res);
-        http_request_free(req);
     }
+
+    http_request *req;
+    req = request_create(NULL, NULL, NULL);
+    if (req == NULL) perror("Error initializing request structure");
+
+    http_response *res = http_response_create(0, NULL, NULL, NULL);
+
+    if (http_parse_request(buf, req) != 0) req = NULL;
+
+    if (http_process_request(ws, res, req, fs) == 0) {
+        char *res_msg = http_response_stringify(res);
+        socket_send(ws, in_fd, res_msg, strlen(res_msg), NULL, 0);
+        free(res_msg);
+
+    } else perror("Error processing request");
+
+    http_response_free(res);
+    http_request_free(req);
 
     free(buf);
     return 0;

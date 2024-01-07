@@ -73,6 +73,15 @@ dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neig
 int webserver_dht_node_init(webserver *ws, char *dht_node_id);
 
 /**
+ * Decides whether a given DHT Node is responsible for
+ * the given resource (in hash-form, i.e. the first 16bit of a SHA256 hash)
+ * @param node the node to check responsibility for.
+ * @param hash the hash to check against node.
+ * @return 1 if node is responsible, 2 if node's successor is, 0 else
+ */
+unsigned short webserver_dht_node_is_responsible(dht_node *node, uint16_t hash);
+
+/**
  * Executes one lifetime-tick of the given webserver
  * @param ws the webserver to tickle.
  * @return 0 on success, -1 on error

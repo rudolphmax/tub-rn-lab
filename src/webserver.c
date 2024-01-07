@@ -99,6 +99,18 @@ void webserver_dht_node_free(dht_node *node) {
     free(node);
 }
 
+unsigned short webserver_dht_node_is_responsible(dht_node *node, uint16_t hash) {
+    if (node->pred->ID > node->ID) {
+        if (node->ID >= hash || node->pred->ID < hash) return 1;
+    } else if (node->ID >= hash && node->pred->ID < hash) return 1;
+
+    if (node->ID > node->succ->ID) {
+        if (hash <= node->succ->ID || hash > node->ID) return 2;
+    } else if (node->succ->ID >= hash && node->ID < hash) return 2;
+
+    return 0;
+}
+
 void handle_connection(int *in_fd, enum connection_protocol protocol, webserver *ws, file_system *fs) {
     int receive_attempts_left = RECEIVE_ATTEMPTS;
     int connection_is_alive = 1;
