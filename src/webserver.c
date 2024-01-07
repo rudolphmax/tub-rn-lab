@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
     }
 
     if (argc == 4) { // expecting dht-node-id
-        dht_node_init(ws, argv[3]);
+        ws->node = dht_node_init(argv[3]);
     }
 
     // opening UDP Socket

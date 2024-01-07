@@ -1,5 +1,6 @@
 #include "dht.h"
-#include "webserver.h"
+#include "utils.h"
+#include "../webserver.h"
 
 dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neighbor_port) {
     if (neighbor_port == NULL || neighbor_ip == NULL) {
@@ -20,32 +21,32 @@ dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neig
     return neighbor;
 }
 
-int dht_node_init(webserver *ws, char *dht_node_id) {
+dht_node* dht_node_init(char *dht_node_id) {
     if (str_is_uint16(dht_node_id) < 0) {
         perror("Invalid DHT Node ID.");
-        return -1;
+        return NULL;
     }
 
-    ws->node = calloc(1, sizeof(dht_node));
-    ws->node->ID = strtol(dht_node_id, NULL, 10);
+    dht_node *node = calloc(1, sizeof(dht_node));
+    node->ID = strtol(dht_node_id, NULL, 10);
 
-    ws->node->pred = dht_neighbor_init(
+    node->pred = dht_neighbor_init(
         getenv("PRED_ID"),
         getenv("PRED_IP"),
         getenv("PRED_PORT")
         );
-    ws->node->succ = dht_neighbor_init(
+    node->succ = dht_neighbor_init(
             getenv("SUCC_ID"),
             getenv("SUCC_IP"),
             getenv("SUCC_PORT")
         );
 
-    if (ws->node->pred == NULL || ws->node->succ == NULL) {
-        free(ws->node);
-        return -1;
+    if (node->pred == NULL || node->succ == NULL) {
+        free(node);
+        return NULL;
     }
 
-    return 0;
+    return node;
 }
 
 void webserver_dht_node_free(dht_node *node) {

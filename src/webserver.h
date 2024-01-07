@@ -27,7 +27,7 @@ typedef struct webserver {
     // Array of file descriptors (int) of currently open sockets. Length: MAX_NUM_OPEN_SOCKETS
     struct pollfd* open_sockets;
     open_socket* open_sockets_config;
-    // ^ Indices of open_sockets_confiog corresponding to the open_sockets array.
+    // ^ Indices of open_sockets_config corresponding to the open_sockets array.
     int num_open_sockets;
     dht_node *node;
 } webserver;

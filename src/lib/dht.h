@@ -2,7 +2,6 @@
 #define RN_PRAXIS_DHT_H
 
 #include <stdint.h>
-#include "../webserver.h"
 
 typedef struct dht_neighbor {
     uint16_t ID;
@@ -35,7 +34,7 @@ dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neig
  * @param dht_node_id the ID of the webserver in the DHT (16Bit int in string-form).
  * @return 0 on success, -1 on error
  */
-int dht_node_init(webserver *ws, char *dht_node_id);
+dht_node* dht_node_init(char *dht_node_id);
 
 /**
  * Decides whether a given DHT Node is responsible for

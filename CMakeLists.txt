@@ -7,8 +7,8 @@ find_package(OpenSSL REQUIRED)
 add_executable(webserver
   src/webserver.c
   src/webserver.h
-  src/lib/udp.c
-  src/lib/udp.h
+  src/lib/dht.c
+  src/lib/dht.h
   src/lib/socket.c
   src/lib/socket.h
   src/lib/utils.c
