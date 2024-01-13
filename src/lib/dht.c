@@ -46,10 +46,13 @@ dht_node* dht_node_init(char *dht_node_id) {
         return NULL;
     }
 
+    node->lookup_cache = calloc(1, sizeof(dht_lookup_cache));
+    for (int i = 0; i < LOOKUP_CACHE_SIZE; i++) node->lookup_cache->hashes[i] = -1;
+
     return node;
 }
 
-void webserver_dht_node_free(dht_node *node) {
+void dht_node_free(dht_node *node) {
     free(node->pred->IP); // TODO: These might be invalid as the pointers come directly from the env vars -> we don't even allocate them...
     free(node->pred->PORT);
     free(node->pred);
@@ -69,4 +72,34 @@ unsigned short dht_node_is_responsible(dht_node *node, uint16_t hash) {
     } else if (node->succ->ID >= hash && node->ID < hash) return 2;
 
     return 0;
+}
+
+short dht_lookup_cache_add_hash(dht_node *node, uint16_t hash) {
+    for (int i = 0; i < LOOKUP_CACHE_SIZE; i++) {
+        if (node->lookup_cache->nodes[i] != NULL) continue;
+
+        node->lookup_cache->hashes[i] = hash;
+        return 0;
+    }
+
+    // replacing the oldest cache entry
+    node->lookup_cache->hashes[0] = hash;
+
+    return -1;
+}
+
+int dht_lookup_cache_find_empty(dht_node *node) {
+    for (int i = 0; i < LOOKUP_CACHE_SIZE; i++) {
+        if (node->lookup_cache->hashes[i] != -1 && node->lookup_cache->nodes[i] == NULL) return i;
+    }
+
+    return -1;
+}
+
+dht_neighbor* dht_lookup_cache_find_node(dht_node *node, uint16_t hash) {
+    for (int i = LOOKUP_CACHE_SIZE-1; i >= 0; i--) {
+        if (node->lookup_cache->hashes[i] == hash) return node->lookup_cache->nodes[i];
+    }
+
+    return NULL;
 }

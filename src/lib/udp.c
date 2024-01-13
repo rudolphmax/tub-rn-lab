@@ -28,7 +28,12 @@ udp_packet* udp_packet_create(unsigned short type, uint16_t hash, uint16_t node_
     return pkt;
 }
 
-char* udp_packet_stringify(udp_packet *pkt) {
+/**
+ * TODO: Doc this
+ * @param pkt
+ * @return
+ */
+char* udp_packet_serialize(udp_packet *pkt) {
     //uint16_t t = htons(pkt->type);
     uint16_t h = htons(pkt->hash);
     uint16_t id = htons(pkt->node_id);
@@ -53,7 +58,7 @@ void udp_packet_free(udp_packet *pkt) {
 }
 
 int udp_send_to_node(webserver *ws, int *sockfd, udp_packet *packet, dht_neighbor *dest_node) {
-    char *msg = udp_packet_stringify(packet);
+    char *msg = udp_packet_serialize(packet);
     if (socket_send(ws, sockfd, msg, packet->bytesize, dest_node->IP, dest_node->PORT) < 0) return -1;
 
     return 0;
@@ -66,7 +71,7 @@ int udp_send_to_node(webserver *ws, int *sockfd, udp_packet *packet, dht_neighbo
  * @return 0 on success, -1 on error.
  */
 int udp_parse_packet(char *pkt_string, udp_packet *pkt) {
-    uint16_t t = 0;
+    uint8_t t = 0;
     uint16_t h = 0;
     uint16_t id = 0;
     uint32_t ip = 0;
@@ -78,7 +83,7 @@ int udp_parse_packet(char *pkt_string, udp_packet *pkt) {
     memcpy(&ip, pkt_string+5, 4);
     memcpy(&p, pkt_string+9, 2);
 
-    pkt->type = ntohs(t);
+    pkt->type = t;
     pkt->hash = ntohs(h);
     pkt->node_id = ntohs(id);
     pkt->node_port = ntohs(p);
@@ -92,12 +97,32 @@ int udp_parse_packet(char *pkt_string, udp_packet *pkt) {
 int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) {
     if (pkt_in == NULL) return -1;
 
+    if (pkt_in->type == 1) {
+
+        int i = dht_lookup_cache_find_empty(ws->node);
+        if (i != -1) {
+            dht_neighbor *n = calloc(1, sizeof(dht_neighbor));
+            n->PORT = calloc(7, sizeof(char));
+            n->IP = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
+
+            strcpy(n->IP, pkt_in->node_ip);
+            snprintf(n->PORT, 6, "%d", pkt_in->node_port);
+            n->ID = pkt_in->node_id;
+
+            ws->node->lookup_cache->nodes[i] = n;
+            return 1;
+        }
+    }
+
     unsigned short responsibility;
     if (ws->node == NULL) responsibility = 1;
     else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
 
     if (responsibility == 0) { // -> forward lookup to successor
-        return -1;
+        memcpy(pkt_out, pkt_in, sizeof(*pkt_in));
+        strcpy(pkt_in->node_ip, ws->node->succ->IP);
+        pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+        return 0;
     }
 
     pkt_out->type = 1;
@@ -105,13 +130,13 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
 
     if (responsibility == 1) {
         pkt_out->node_id = ws->node->ID;
-        pkt_out->node_ip = ws->HOST;
+        strcpy(pkt_out->node_ip, ws->HOST);
         pkt_out->node_port = strtol(ws->PORT, NULL, 10);
         return 0;
 
     } else if (responsibility == 2) {
         pkt_out->node_id = ws->node->succ->ID;
-        pkt_out->node_ip = ws->node->succ->IP;
+        strcpy(pkt_out->node_ip, ws->node->succ->IP);
         pkt_out->node_port = strtol(ws->node->succ->PORT, NULL, 10);
         return 0;
     }
@@ -124,6 +149,10 @@ int udp_handle_connection(int *in_fd, webserver *ws) {
     char *buf = calloc(MAX_DATA_SIZE, sizeof(char)); // TODO: Update MAX_DATA_SIZE for UDP (pkt-size is fixed after all)
 
     // TODO: refactor this into combined function in socket (ideally)
+    struct sockaddr_in addr;
+    socklen_t addr_len = sizeof(addr);
+    memset(&addr, 0, addr_len);
+
     int n_bytes = 0;
     while (n_bytes < 11 && n_bytes >= 0) { // TODO: Hardcoded UDP-Packet length
         n_bytes = recvfrom(
@@ -134,8 +163,8 @@ int udp_handle_connection(int *in_fd, webserver *ws) {
                 // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
                 (MAX_DATA_SIZE-1) - n_bytes,
                 0,
-                NULL,
-                NULL
+                (struct sockaddr *) &addr,
+                &addr_len
         );
     }
 
@@ -158,7 +187,7 @@ int udp_handle_connection(int *in_fd, webserver *ws) {
     if (udp_parse_packet(buf, pkt_in) != 0) pkt_in = NULL;
 
     if (udp_process_packet(ws, pkt_out, pkt_in) == 0) {
-        char *res_msg = udp_packet_stringify(pkt_out);
+        char *res_msg = udp_packet_serialize(pkt_out);
 
         char *port_str = calloc(7, sizeof(char));
         snprintf(port_str, 6, "%d", pkt_in->node_port);

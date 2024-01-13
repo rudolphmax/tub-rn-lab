@@ -514,19 +514,34 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
     if (responsibility == 2) { // -> redirect to successor
         unsigned int red_loc_len = 9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
         char *red_loc = calloc(red_loc_len, sizeof(char));
-        snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT,
-                 req->header->URI);
+        snprintf(red_loc, red_loc_len, "http://%s:%s%s", ws->node->succ->IP, ws->node->succ->PORT, req->header->URI);
 
         http_redirect(res, 303, red_loc);
         return 0;
     }
 
-    if (responsibility == 0) { // -> send lookup into DHT, the responsible node is unknown
+    if (responsibility == 0) {
+        dht_neighbor *n = dht_lookup_cache_find_node(ws->node, h);
+        if (n != NULL) {
+            unsigned int red_loc_len = 9 + strlen(ws->node->succ->IP) + strlen(ws->node->succ->PORT) + strlen(req->header->URI);
+            char *red_loc = calloc(red_loc_len, sizeof(char));
+            snprintf(red_loc, red_loc_len, "http://%s:%s%s", n->IP, n->PORT, req->header->URI);
+
+            http_redirect(res, 303, red_loc);
+
+            free(n->IP);
+            free(n->PORT);
+            free(n);
+            return 0;
+        }
+
+        // -> send lookup into DHT, the responsible node is unknown
         int udp_sock = -1;
         for (int i = 0; i < ws->num_open_sockets; i++) {
-            if (ws->open_sockets_config[i].is_server_socket == 0 || ws->open_sockets_config[i].protocol != 1) continue;
-
-            udp_sock = ws->open_sockets[i].fd;
+            if (ws->open_sockets_config[i].is_server_socket == 1 && ws->open_sockets_config[i].protocol == 1) {
+                udp_sock = ws->open_sockets[i].fd;
+                break;
+            }
         }
         if (udp_sock == -1) return -1;
 
@@ -539,6 +554,8 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
         strcpy(res->header->status_message, "Service Unavailable");
         res->header->status_code = 503;
         http_add_header_field(res, "Retry-After", "1");
+
+        dht_lookup_cache_add_hash(ws->node, h);
         return 0;
     }
 

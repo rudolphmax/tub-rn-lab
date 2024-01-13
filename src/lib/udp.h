@@ -44,7 +44,6 @@ int udp_send_to_node(webserver *ws, int *sockfd, udp_packet *packet, dht_neighbo
  * Handles an incoming UDP connection.
  * @param in_fd Socket File Descriptor of the accepted connection.
  * @param ws Webserver object.
- * @param fs File System object. // TODO: Do we need this?
  * @return 0 on success, -1 on error.
  */
 int udp_handle_connection(int *in_fd, webserver *ws);

@@ -1,6 +1,7 @@
 #include <inttypes.h>
 #include <sys/errno.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <openssl/sha.h>
 #include "utils.h"
