@@ -12,7 +12,7 @@
 #define RECEIVE_ATTEMPTS 1 // The amount of times the server should retry receiving from a socket if an error occurs
 
 enum connection_protocol {
-    HTTP,
+    TCP,
     UDP
 };
 
@@ -52,11 +52,5 @@ int webserver_tick(webserver *ws, file_system *fs);
  * @param ws The webserver to be freed.
  */
 void webserver_free(webserver *ws);
-
-/**
- * Frees the given dht_node-object.
- * @param node The dht_node to be freed.
- */
-void webserver_dht_node_free(dht_node *node);
 
 #endif //RN_PRAXIS_WEBSERVER_H
