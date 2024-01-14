@@ -97,23 +97,6 @@ int udp_parse_packet(char *pkt_string, udp_packet *pkt) {
 int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) {
     if (pkt_in == NULL) return -1;
 
-    if (pkt_in->type == 1) {
-
-        int i = dht_lookup_cache_find_empty(ws->node);
-        if (i != -1) {
-            dht_neighbor *n = calloc(1, sizeof(dht_neighbor));
-            n->PORT = calloc(7, sizeof(char));
-            n->IP = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
-
-            strcpy(n->IP, pkt_in->node_ip);
-            snprintf(n->PORT, 6, "%d", pkt_in->node_port);
-            n->ID = pkt_in->node_id;
-
-            ws->node->lookup_cache->nodes[i] = n;
-            return 1;
-        }
-    }
-
     unsigned short responsibility;
     if (ws->node == NULL) responsibility = 1;
     else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
@@ -128,20 +111,40 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
     pkt_out->type = 1;
     pkt_out->hash = ws->node->ID;
 
-    if (responsibility == 1) {
+    if (pkt_in->type == 1) {
+        pkt_out->node_id = pkt_in->node_id;
+        strcpy(pkt_out->node_ip, pkt_in->node_ip);
+        pkt_out->node_port = pkt_in->node_port;
+
+    } else if (responsibility == 1) {
         pkt_out->node_id = ws->node->ID;
         strcpy(pkt_out->node_ip, ws->HOST);
         pkt_out->node_port = strtol(ws->PORT, NULL, 10);
-        return 0;
 
     } else if (responsibility == 2) {
         pkt_out->node_id = ws->node->succ->ID;
         strcpy(pkt_out->node_ip, ws->node->succ->IP);
         pkt_out->node_port = strtol(ws->node->succ->PORT, NULL, 10);
-        return 0;
+
+    } else return -1;
+
+    // writing responsible node to lookup-cache
+    int i = dht_lookup_cache_find_empty(ws->node);
+    if (i != -1) {
+        dht_neighbor *n = calloc(1, sizeof(dht_neighbor));
+        n->PORT = calloc(7, sizeof(char));
+        n->IP = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
+
+        strcpy(n->IP, pkt_out->node_ip);
+        snprintf(n->PORT, 6, "%d", pkt_out->node_port);
+        n->ID = pkt_out->node_id;
+
+        ws->node->lookup_cache->nodes[i] = n;
     }
 
-    return -1;
+    if (pkt_in->type == 1) return 1; // don't answer received replies
+
+    return 0;
 }
 
 // TODO: Poor naming as UDP is not connection-based

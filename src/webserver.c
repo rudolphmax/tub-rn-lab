@@ -44,21 +44,10 @@ webserver* webserver_init(char* hostname, char* port_str) {
 }
 
 void handle_connection(int *in_fd, enum connection_protocol protocol, webserver *ws, file_system *fs) {
-    int receive_attempts_left = RECEIVE_ATTEMPTS;
-    int connection_is_alive = 1;
-
-    while (connection_is_alive) {
-        int retval = -1;
-
-        if (protocol == TCP) {
-            retval = http_handle_connection(in_fd, ws, fs);
-        } else if (protocol == UDP) {
-            retval = udp_handle_connection(in_fd, ws);
-            connection_is_alive = 0;
-        }
-
-        if (retval < 0) receive_attempts_left--;
-        if (receive_attempts_left == 0) connection_is_alive = 0;
+    if (protocol == TCP) {
+        http_handle_connection(in_fd, ws, fs);
+    } else if (protocol == UDP) {
+        udp_handle_connection(in_fd, ws);
     }
 }
 
@@ -115,10 +104,11 @@ int webserver_tick(webserver *ws, file_system *fs) {
         }
 
         // Disabling the client socket
-        sock->events = 0;
+        // TODO: when to remove client sockets?
+        /*sock->events = 0;
         sock->fd = -1;
         sock_config->is_server_socket = 0;
-        sock_config->protocol = 0;
+        sock_config->protocol = 0;*/
     }
 
     return 0;
