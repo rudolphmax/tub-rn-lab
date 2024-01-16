@@ -34,12 +34,12 @@ dht_node* dht_node_init(char *dht_node_id) {
         getenv("PRED_ID"),
         getenv("PRED_IP"),
         getenv("PRED_PORT")
-        );
+    );
     node->succ = dht_neighbor_init(
-            getenv("SUCC_ID"),
-            getenv("SUCC_IP"),
-            getenv("SUCC_PORT")
-        );
+        getenv("SUCC_ID"),
+        getenv("SUCC_IP"),
+        getenv("SUCC_PORT")
+    );
 
     if (node->pred == NULL || node->succ == NULL) {
         free(node);
@@ -53,11 +53,7 @@ dht_node* dht_node_init(char *dht_node_id) {
 }
 
 void dht_node_free(dht_node *node) {
-    free(node->pred->IP); // TODO: These might be invalid as the pointers come directly from the env vars -> we don't even allocate them...
-    free(node->pred->PORT);
     free(node->pred);
-    free(node->succ->IP);
-    free(node->succ->PORT);
     free(node->succ);
     free(node);
 }
