@@ -101,34 +101,43 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
     if (ws->node == NULL) responsibility = 1;
     else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
 
-    if (responsibility == 0) { // -> forward lookup to successor
-        memcpy(pkt_out, pkt_in, sizeof(*pkt_in));
-        strcpy(pkt_in->node_ip, ws->node->succ->IP);
-        pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+    if (pkt_in->type != 1) {
+        if (responsibility == 0) { // -> forward lookup to successor
+            //memcpy(pkt_out, pkt_in, sizeof(*pkt_in));
+            strcpy(pkt_out->node_ip, pkt_in->node_ip);
+            pkt_out->node_port = pkt_in->node_port;
+            pkt_out->node_id = pkt_in->node_id;
+            pkt_out->hash = pkt_in->hash;
+            pkt_out->type = pkt_in->type;
+
+            strcpy(pkt_in->node_ip, ws->node->succ->IP);
+            pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+            return 0;
+        }
+
+        pkt_out->type = 1;
+        pkt_out->hash = ws->node->ID;
+
+        if (responsibility == 1) {
+            pkt_out->node_id = ws->node->ID;
+            strcpy(pkt_out->node_ip, ws->HOST);
+            pkt_out->node_port = strtol(ws->PORT, NULL, 10);
+
+        } else if (responsibility == 2) {
+            pkt_out->node_id = ws->node->succ->ID;
+            strcpy(pkt_out->node_ip, ws->node->succ->IP);
+            pkt_out->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+
+        } else return -1;
+
         return 0;
     }
 
-    pkt_out->type = 1;
-    pkt_out->hash = ws->node->ID;
+    pkt_out->node_id = pkt_in->node_id;
+    strcpy(pkt_out->node_ip, pkt_in->node_ip);
+    pkt_out->node_port = pkt_in->node_port;
 
-    if (pkt_in->type == 1) {
-        pkt_out->node_id = pkt_in->node_id;
-        strcpy(pkt_out->node_ip, pkt_in->node_ip);
-        pkt_out->node_port = pkt_in->node_port;
-
-    } else if (responsibility == 1) {
-        pkt_out->node_id = ws->node->ID;
-        strcpy(pkt_out->node_ip, ws->HOST);
-        pkt_out->node_port = strtol(ws->PORT, NULL, 10);
-
-    } else if (responsibility == 2) {
-        pkt_out->node_id = ws->node->succ->ID;
-        strcpy(pkt_out->node_ip, ws->node->succ->IP);
-        pkt_out->node_port = strtol(ws->node->succ->PORT, NULL, 10);
-
-    } else return -1;
-
-    // writing responsible node to lookup-cache
+    // writing responsible node to lookup-cache 
     int i = dht_lookup_cache_find_empty(ws->node);
     if (i != -1) {
         dht_neighbor *n = calloc(1, sizeof(dht_neighbor));
@@ -142,9 +151,7 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
         ws->node->lookup_cache->nodes[i] = n;
     }
 
-    if (pkt_in->type == 1) return 1; // don't answer received replies
-
-    return 0;
+    return 1; // don't answer received replies
 }
 
 // TODO: Poor naming as UDP is not connection-based
@@ -177,7 +184,6 @@ int udp_handle_connection(int *in_fd, webserver *ws) {
             free(buf);
         }
 
-        perror("Socket couldn't read package.");
         return -1;
     }
 

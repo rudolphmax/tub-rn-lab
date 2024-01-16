@@ -528,10 +528,6 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
             snprintf(red_loc, red_loc_len, "http://%s:%s%s", n->IP, n->PORT, req->header->URI);
 
             http_redirect(res, 303, red_loc);
-
-            free(n->IP);
-            free(n->PORT);
-            free(n);
             return 0;
         }
 
@@ -575,9 +571,7 @@ int http_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
             free(buf);
         }
 
-        perror("Socket couldn't read package.");
         return -1;
-
     }
 
     http_request *req;

@@ -84,6 +84,9 @@ short dht_lookup_cache_add_hash(dht_node *node, uint16_t hash) {
 
     // replacing the oldest cache entry
     node->lookup_cache->hashes[0] = hash;
+    free(node->lookup_cache->nodes[0]->IP);
+    free(node->lookup_cache->nodes[0]->PORT);
+    free(node->lookup_cache->nodes[0]);
 
     return -1;
 }
