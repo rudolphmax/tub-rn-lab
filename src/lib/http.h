@@ -104,6 +104,6 @@ void http_response_free(http_response *res);
  * @param fs File System object.
  * @return 0 on success, -1 on error.
  */
-int http_handle_connection(int *in_fd, webserver *ws, file_system *fs);
+int http_handle(int *in_fd, webserver *ws, file_system *fs);
 
 #endif //RN_PRAXIS_HTTP_H

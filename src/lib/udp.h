@@ -5,6 +5,8 @@
 #include "../webserver.h"
 #include "socket.h"
 
+#define UDP_MAX_DATA_SIZE 11
+
 typedef struct udp_packet {
     uint8_t type;
     uint16_t hash;
@@ -15,28 +17,29 @@ typedef struct udp_packet {
 } udp_packet;
 
 /**
- * TODO: Doc this
- * @param type
- * @param hash
- * @param node_id
- * @param node
- * @return
+ * Creates a new UDP packet and fills it with the given values (may be NULL / 0 etc.)
+ * @param type The packet's type. 0 = lookup, 1 = reply.
+ * @param hash The communicated hash. The first 16 Bits of a SHA256 hash.
+ * @param node_id The ID of the communicated node (the first 16 Bits of a SHA256 hash).
+ * @param node_ip The IP of the communicated node.
+ * @param node_port The Port of the communicated node.
+ * @return a UDP packet object, NULL on error.
  */
 udp_packet *udp_packet_create(unsigned short type, uint16_t hash, uint16_t node_id, char *node_ip, char *node_port);
 
 /**
- * TODO: Doc this
- * @param pkt
+ * Frees the given UDP packet.
+ * @param pkt the packet to be freed.
  */
 void udp_packet_free(udp_packet *pkt);
 
 /**
- * TODO: Doc this
- * @param type
- * @param hash
- * @param node_id
- * @param orig_node
- * @return
+ * Sends a given UDP packet to a specific node (/client defined by IP and Port).
+ * @param ws This webserver object.
+ * @param sockfd The socket to send to (bound DGRAM socket).
+ * @param packet The UDP packet to send.
+ * @param dest_node The node to send the packet to.
+ * @return 0 on success, -1 on error.
  */
 int udp_send_to_node(webserver *ws, int *sockfd, udp_packet *packet, dht_neighbor *dest_node);
 
@@ -46,6 +49,6 @@ int udp_send_to_node(webserver *ws, int *sockfd, udp_packet *packet, dht_neighbo
  * @param ws Webserver object.
  * @return 0 on success, -1 on error.
  */
-int udp_handle_connection(int *in_fd, webserver *ws);
+int udp_handle(int *in_fd, webserver *ws);
 
 #endif //RN_PRAXIS_UDP_H

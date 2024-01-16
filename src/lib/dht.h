@@ -60,26 +60,27 @@ void dht_node_free(dht_node *node);
 unsigned short dht_node_is_responsible(dht_node *node, uint16_t hash);
 
 /**
- * TODO: Doc this
- * @param node
- * @param hash
- * @param neighbor
- * @return
+ * Adds a given hash to the DHT Node's lookup-cache.
+ * When there is no free spot, the first entry's hash is replaced and it's saved Node is discarded.
+ * @param node The node who's lookup-cache is to be used.
+ * @param hash The hash to add.
+ * @return 0 on success, -1 on error.
  */
 short dht_lookup_cache_add_hash(dht_node *node, uint16_t hash);
 
 /**
- * TODO: Doc this
- * @param node
- * @return
+ * Finds an entry in the node's lookup-cache that has a hash but no associated node.
+ * @param node The node who's lookup-cache to search.
+ * @return The cache-entry's index on success, -1 if no such entry could be found.
  */
 int dht_lookup_cache_find_empty(dht_node *node);
 
 /**
- * TODO: Doc this
- * @param node
- * @param hash
- * @return
+ * Finds a lookup-cache entry by hash and returns the associated node.
+ * @param node The node who's lookup-cache to search.
+ * @param hash The hash to search for.
+ * @return The node corresponding to the hash,
+ * NULL if the hash is not in the cache or when it has no associated node.
  */
 dht_neighbor* dht_lookup_cache_find_node(dht_node *node, uint16_t hash);
 
