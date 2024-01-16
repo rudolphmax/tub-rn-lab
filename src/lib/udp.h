@@ -40,4 +40,12 @@ void udp_packet_free(udp_packet *pkt);
  */
 int udp_send_to_node(webserver *ws, int *sockfd, udp_packet *packet, dht_neighbor *dest_node);
 
+/**
+ * Handles an incoming UDP connection.
+ * @param in_fd Socket File Descriptor of the accepted connection.
+ * @param ws Webserver object.
+ * @return 0 on success, -1 on error.
+ */
+int udp_handle_connection(int *in_fd, webserver *ws);
+
 #endif //RN_PRAXIS_UDP_H

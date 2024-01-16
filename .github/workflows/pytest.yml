@@ -26,7 +26,6 @@ jobs:
 
   test_p2:
     runs-on: ubuntu-latest
-    needs: test_p1
     steps:
     - uses: actions/checkout@v3
     - name: Get cmake

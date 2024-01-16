@@ -6,7 +6,7 @@
 int socket_accept(int *sockfd) {
     struct sockaddr_storage in_addr;
     socklen_t in_addr_size = sizeof(in_addr);
-    debug_print("Accepting connection...");
+    // debug_print("Accepting connection...");
 
     return accept(*sockfd, (struct sockaddr*) &in_addr, &in_addr_size);
 }
@@ -42,7 +42,7 @@ int socket_open(webserver *ws, int socktype) {
     }
 
     ws->open_sockets[ws->num_open_sockets].fd = sockfd;
-    ws->open_sockets[ws->num_open_sockets].events = POLLIN;
+    ws->open_sockets[ws->num_open_sockets].events = POLLIN | POLLOUT;
     ws->open_sockets_config[ws->num_open_sockets].is_server_socket = 1;
     ws->num_open_sockets++;
     freeaddrinfo(res);
