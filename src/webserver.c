@@ -45,9 +45,9 @@ webserver* webserver_init(char* hostname, char* port_str) {
 
 void handle_connection(int *in_fd, enum connection_protocol protocol, webserver *ws, file_system *fs) {
     if (protocol == TCP) {
-        http_handle_connection(in_fd, ws, fs);
+        http_handle(in_fd, ws, fs);
     } else if (protocol == UDP) {
-        udp_handle_connection(in_fd, ws);
+        udp_handle(in_fd, ws);
     }
 }
 

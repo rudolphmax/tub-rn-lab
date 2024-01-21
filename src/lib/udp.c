@@ -155,7 +155,7 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
 }
 
 // TODO: Poor naming as UDP is not connection-based
-int udp_handle_connection(int *in_fd, webserver *ws) {
+int udp_handle(int *in_fd, webserver *ws) {
     char *buf = calloc(MAX_DATA_SIZE, sizeof(char)); // TODO: Update MAX_DATA_SIZE for UDP (pkt-size is fixed after all)
 
     // TODO: refactor this into combined function in socket (ideally)

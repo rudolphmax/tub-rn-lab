@@ -558,7 +558,7 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
     return -1;
 }
 
-int http_handle_connection(int *in_fd, webserver *ws, file_system *fs) {
+int http_handle(int *in_fd, webserver *ws, file_system *fs) {
     char *buf = calloc(MAX_DATA_SIZE, sizeof(char));
 
     int bytes_received = socket_receive_all(in_fd, buf, MAX_DATA_SIZE);
