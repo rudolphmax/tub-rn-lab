@@ -1,0 +1,78 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch webserver as Node",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/build/webserver",
+            "args": [
+                "127.0.0.1",
+                "4711",
+                "0"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [
+                { "name": "PRED_ID", "value": "65535" },
+                { "name": "PRED_IP", "value": "127.0.0.1" },
+                { "name": "PRED_PORT", "value": "4710" },
+                { "name": "SUCC_ID", "value": "1" },
+                { "name": "SUCC_IP", "value": "127.0.0.1" },
+                { "name": "SUCC_PORT", "value": "4712" },
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) Launch webserver's Node Peer",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/build/webserver",
+            "args": [
+                "127.0.0.1",
+                "4712",
+                "1"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [
+                { "name": "PRED_ID", "value": "0" },
+                { "name": "PRED_IP", "value": "127.0.0.1" },
+                { "name": "PRED_PORT", "value": "4711" },
+                { "name": "SUCC_ID", "value": "65535" },
+                { "name": "SUCC_IP", "value": "127.0.0.1" },
+                { "name": "SUCC_PORT", "value": "4710" },
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}

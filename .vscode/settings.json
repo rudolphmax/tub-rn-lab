@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "filesystem.h": "c",
+        "operations.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
+}
