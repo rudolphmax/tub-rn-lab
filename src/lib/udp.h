@@ -5,10 +5,18 @@
 #include "../webserver.h"
 #include "socket.h"
 
-#define UDP_MAX_DATA_SIZE 11
+#define UDP_DATA_SIZE 11
+
+typedef enum udp_packet_type {
+    LOOKUP,
+    REPLY,
+    STABILIZE,
+    NOTIFY,
+    JOIN
+} udp_packet_type;
 
 typedef struct udp_packet {
-    uint8_t type;
+    udp_packet_type type;
     uint16_t hash;
     uint16_t node_id;
     char* node_ip;
@@ -18,14 +26,14 @@ typedef struct udp_packet {
 
 /**
  * Creates a new UDP packet and fills it with the given values (may be NULL / 0 etc.)
- * @param type The packet's type. 0 = lookup, 1 = reply.
+ * @param type The packet's type.
  * @param hash The communicated hash. The first 16 Bits of a SHA256 hash.
  * @param node_id The ID of the communicated node (the first 16 Bits of a SHA256 hash).
  * @param node_ip The IP of the communicated node.
  * @param node_port The Port of the communicated node.
  * @return a UDP packet object, NULL on error.
  */
-udp_packet *udp_packet_create(unsigned short type, uint16_t hash, uint16_t node_id, char *node_ip, char *node_port);
+udp_packet *udp_packet_create(udp_packet_type type, uint16_t hash, uint16_t node_id, char *node_ip, char *node_port);
 
 /**
  * Frees the given UDP packet.

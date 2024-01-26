@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-udp_packet* udp_packet_create(unsigned short type, uint16_t hash, uint16_t node_id, char *node_ip, char *node_port) {
+udp_packet* udp_packet_create(udp_packet_type type, uint16_t hash, uint16_t node_id, char *node_ip, char *node_port) {
     udp_packet *pkt = calloc(1, sizeof(udp_packet));
 
     pkt->bytesize = 0;
@@ -29,7 +29,7 @@ udp_packet* udp_packet_create(unsigned short type, uint16_t hash, uint16_t node_
 }
 
 /**
- * TODO: Doc this
+ * Serializes a UDP packet into a byte-array.
  * @param pkt
  * @return
  */
@@ -40,7 +40,7 @@ char* udp_packet_serialize(udp_packet *pkt) {
     uint32_t ip = inet_addr(pkt->node_ip);
     uint16_t p = htons(pkt->node_port);
 
-    pkt->bytesize = 11;
+    pkt->bytesize = UDP_DATA_SIZE;
     char *msg = calloc(pkt->bytesize, sizeof(char));
 
     memcpy(msg, &(pkt->type), 1);
@@ -97,11 +97,23 @@ int udp_parse_packet(char *pkt_string, udp_packet *pkt) {
 int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) {
     if (pkt_in == NULL) return -1;
 
+    if (ws->node->status == JOINING) { // This node wants to join an existing DHT
+        pkt_out->type = JOIN;
+        pkt_out->hash = 0;
+        pkt_out->node_id = ws->node->ID;
+        strcpy(pkt_out->node_ip, ws->HOST);
+        pkt_out->node_port = strtol(ws->PORT, NULL, 10);
+
+        strcpy(pkt_in->node_ip, ws->node->succ->IP);
+        pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+        return 0;
+    }
+
     unsigned short responsibility;
     if (ws->node == NULL) responsibility = 1;
     else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
 
-    if (pkt_in->type != 1) {
+    if (pkt_in->type == LOOKUP) {
         if (responsibility == 0) { // -> forward lookup to successor
             //memcpy(pkt_out, pkt_in, sizeof(*pkt_in));
             strcpy(pkt_out->node_ip, pkt_in->node_ip);
@@ -115,7 +127,7 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
             return 0;
         }
 
-        pkt_out->type = 1;
+        pkt_out->type = REPLY;
         pkt_out->hash = ws->node->ID;
 
         if (responsibility == 1) {
@@ -154,37 +166,38 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
     return 1; // don't answer received replies
 }
 
-// TODO: Poor naming as UDP is not connection-based
 int udp_handle(int *in_fd, webserver *ws) {
-    char *buf = calloc(MAX_DATA_SIZE, sizeof(char)); // TODO: Update MAX_DATA_SIZE for UDP (pkt-size is fixed after all)
+    char *buf = calloc(UDP_DATA_SIZE, sizeof(char));
 
-    // TODO: refactor this into combined function in socket (ideally)
-    struct sockaddr_in addr;
-    socklen_t addr_len = sizeof(addr);
-    memset(&addr, 0, addr_len);
+    if (ws->node->status == OK) {
+        // TODO: refactor this into combined function in socket (ideally)
+        struct sockaddr_in addr;
+        socklen_t addr_len = sizeof(addr);
+        memset(&addr, 0, addr_len);
 
-    int n_bytes = 0;
-    while (n_bytes < 11 && n_bytes >= 0) { // TODO: Hardcoded UDP-Packet length
-        n_bytes = recvfrom(
-                *in_fd,
-                // buffer[0 - bytes_received-1] is full of data,
-                // buffer[bytes_received] is where we want to continue to write (the next first byte)
-                buf + n_bytes,
-                // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
-                (MAX_DATA_SIZE-1) - n_bytes,
-                0,
-                (struct sockaddr *) &addr,
-                &addr_len
-        );
-    }
-
-    if (n_bytes <= 0) {
-        if (errno == ECONNRESET || errno == EINTR || errno == ETIMEDOUT) {
-            if (socket_shutdown(ws, in_fd) != 0) perror("Socket shutdown failed.");
-            free(buf);
+        int n_bytes = 0;
+        while (n_bytes < UDP_DATA_SIZE && n_bytes >= 0) {
+            n_bytes = recvfrom(
+                    *in_fd,
+                    // buffer[0 - bytes_received-1] is full of data,
+                    // buffer[bytes_received] is where we want to continue to write (the next first byte)
+                    buf + n_bytes,
+                    // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
+                    (UDP_DATA_SIZE-1) - n_bytes,
+                    0,
+                    (struct sockaddr *) &addr,
+                    &addr_len
+            );
         }
 
-        return -1;
+        if (n_bytes <= 0) {
+            if (errno == ECONNRESET || errno == EINTR || errno == ETIMEDOUT) {
+                if (socket_shutdown(ws, in_fd) != 0) perror("Socket shutdown failed.");
+                free(buf);
+            }
+
+            return -1;
+        }
     }
 
     udp_packet *pkt_in;
@@ -193,7 +206,7 @@ int udp_handle(int *in_fd, webserver *ws) {
 
     udp_packet *pkt_out = udp_packet_create(0, 0, 0, NULL, NULL);
 
-    if (udp_parse_packet(buf, pkt_in) != 0) pkt_in = NULL;
+    if (buf != NULL && udp_parse_packet(buf, pkt_in) != 0) pkt_in = NULL;
 
     if (udp_process_packet(ws, pkt_out, pkt_in) == 0) {
         char *res_msg = udp_packet_serialize(pkt_out);

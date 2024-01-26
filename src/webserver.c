@@ -64,7 +64,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
         struct pollfd *sock = &(ws->open_sockets[i]);
         open_socket *sock_config = &(ws->open_sockets_config[i]);
 
-        if (!(sock->revents & POLLIN)) continue;
+        if (!(sock->revents & (POLLIN | POLLOUT))) continue;
 
         // Handle TCP server-sockets
         if (sock_config->is_server_socket == 1 && sock_config->protocol == TCP) {
@@ -125,14 +125,13 @@ void webserver_free(webserver *ws) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != EXPECTED_NUMBER_OF_PARAMS + 1 && argc != EXPECTED_NUMBER_OF_PARAMS + 2) {
-        perror("Wrong number of args. Usage: ./webserver {ip} {port} {optional: dht_node_id}");
+    if (argc != MIN_NUMBER_OF_PARAMS + 1 && argc != MAX_NUMBER_OF_PARAMS + 1) {
+        perror("Wrong number of args. Usage: ./webserver {IP} {PORT} {Node ID} {? Anchor IP} {? Anchor PORT} ; When Anchor IP is set, Anchor PORT must be set as well.");
         exit(EXIT_FAILURE);
     }
 
-    // TODO: Refactor this into a function
     // initializing underlying filesystem
-    file_system *fs = fs_create(500); // TODO: Which size to choose?
+    file_system *fs = fs_create(50);
     fs_mkdir(fs, "/static");
     fs_mkdir(fs, "/dynamic");
     fs_mkfile(fs, "/static/foo");
@@ -149,9 +148,9 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    if (argc == 4) { // expecting dht-node-id
-        ws->node = dht_node_init(argv[3]);
-    }
+    if (argc > 4) {
+        ws->node = dht_node_init(argv[3], argv[4], argv[5]);
+    } else ws->node = dht_node_init(argv[3], NULL, NULL);
 
     // opening UDP Socket
     if (socket_open(ws, SOCK_DGRAM) < 0) {
