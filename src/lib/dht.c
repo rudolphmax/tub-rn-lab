@@ -66,16 +66,6 @@ dht_node* dht_node_init(char *dht_node_id, char *dht_anchor_ip, char *dht_anchor
     return node;
 }
 
-dht_neighbor *dht_neighbor_from_packet(udp_packet *pkt) {
-    dht_neighbor *n = calloc(1, sizeof(dht_neighbor));
-    n->PORT = calloc(7, sizeof(char));
-    n->IP = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
-
-    strcpy(n->IP, pkt->node_ip);
-    snprintf(n->PORT, 6, "%d", pkt->node_port);
-    n->ID = pkt->node_id;
-}
-
 void dht_node_free(dht_node *node) {
     if (node->pred != NULL) free(node->pred);
     if (node->succ != NULL)free(node->succ);

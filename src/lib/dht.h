@@ -2,7 +2,6 @@
 #define RN_PRAXIS_DHT_H
 
 #include <stdint.h>
-#include "./udp.h"
 
 #define LOOKUP_CACHE_SIZE 10
 
@@ -43,11 +42,6 @@ typedef struct dht_node {
  * @return A dht_neighbor object on success, NULL on error.
  */
 dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neighbor_port);
-
-/**
- * TODO: Doc this
- */
-dht_neighbor* dht_neighbor_from_packet(udp_packet *pkt);
 
 /**
  * Initializes a new dht_node-object from a given ID.

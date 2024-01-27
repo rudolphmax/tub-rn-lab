@@ -29,6 +29,21 @@ udp_packet* udp_packet_create(udp_packet_type type, uint16_t hash, uint16_t node
 }
 
 /**
+ * TODO: Doc this
+ */
+dht_neighbor* dht_neighbor_from_packet(udp_packet *pkt) {
+    dht_neighbor *n = calloc(1, sizeof(dht_neighbor));
+    n->PORT = calloc(7, sizeof(char));
+    n->IP = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
+
+    strcpy(n->IP, pkt->node_ip);
+    snprintf(n->PORT, 6, "%d", pkt->node_port);
+    n->ID = pkt->node_id;
+
+    return n;
+}
+
+/**
  * Serializes a UDP packet into a byte-array.
  * @param pkt
  * @return
@@ -102,7 +117,7 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
     else if (pkt_in->type == JOIN) responsibility = dht_node_is_responsible(ws->node, pkt_in->node_id);
     else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
 
-    if (pkt_in->type == LOOKUP || pkt_in->type != JOIN) {
+    if (pkt_in->type == LOOKUP || pkt_in->type == JOIN) {
         if (responsibility == 0 || (pkt_in->type == JOIN && responsibility == 2)) { // -> forward message to successor
             strcpy(pkt_out->node_ip, pkt_in->node_ip);
             pkt_out->node_port = pkt_in->node_port;
