@@ -97,25 +97,13 @@ int udp_parse_packet(char *pkt_string, udp_packet *pkt) {
 int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) {
     if (pkt_in == NULL) return -1;
 
-    if (ws->node->status == JOINING) { // This node wants to join an existing DHT
-        pkt_out->type = JOIN;
-        pkt_out->hash = 0;
-        pkt_out->node_id = ws->node->ID;
-        strcpy(pkt_out->node_ip, ws->HOST);
-        pkt_out->node_port = strtol(ws->PORT, NULL, 10);
-
-        strcpy(pkt_in->node_ip, ws->node->succ->IP);
-        pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
-        return 0;
-    }
-
     unsigned short responsibility;
     if (ws->node == NULL) responsibility = 1;
+    else if (pkt_in->type == JOIN) responsibility = dht_node_is_responsible(ws->node, pkt_in->node_id);
     else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
 
-    if (pkt_in->type == LOOKUP) {
-        if (responsibility == 0) { // -> forward lookup to successor
-            //memcpy(pkt_out, pkt_in, sizeof(*pkt_in));
+    if (pkt_in->type == LOOKUP || pkt_in->type != JOIN) {
+        if (responsibility == 0 || (pkt_in->type == JOIN && responsibility == 2)) { // -> forward message to successor
             strcpy(pkt_out->node_ip, pkt_in->node_ip);
             pkt_out->node_port = pkt_in->node_port;
             pkt_out->node_id = pkt_in->node_id;
@@ -127,13 +115,23 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
             return 0;
         }
 
-        pkt_out->type = REPLY;
-        pkt_out->hash = ws->node->ID;
+        if (pkt_in->type == JOIN) {
+            pkt_out->type = NOTIFY;
+            pkt_out->hash = 0;
+        } else {
+            pkt_out->type = REPLY;
+            pkt_out->hash = ws->node->ID;
+        }
 
         if (responsibility == 1) {
             pkt_out->node_id = ws->node->ID;
             strcpy(pkt_out->node_ip, ws->HOST);
             pkt_out->node_port = strtol(ws->PORT, NULL, 10);
+
+            if (pkt_in->type == JOIN) {
+                free(ws->node->pred);
+                ws->node->pred = dht_neighbor_from_packet(pkt_in);
+            }
 
         } else if (responsibility == 2) {
             pkt_out->node_id = ws->node->succ->ID;
@@ -143,33 +141,48 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
         } else return -1;
 
         return 0;
+
+    } else if (pkt_in->type == NOTIFY) {
+        free(ws->node->succ);
+        ws->node->pred = dht_neighbor_from_packet(pkt_in);
+        ws->node->status = INCONSISTENT;
+
+    } else if (pkt_in->type == REPLY) {
+        pkt_out->node_id = pkt_in->node_id;
+        strcpy(pkt_out->node_ip, pkt_in->node_ip);
+        pkt_out->node_port = pkt_in->node_port;
+
+        // writing responsible node to lookup-cache 
+        int i = dht_lookup_cache_find_empty(ws->node);
+        if (i != -1) {
+            ws->node->lookup_cache->nodes[i] = dht_neighbor_from_packet(pkt_out);
+        }
     }
 
-    pkt_out->node_id = pkt_in->node_id;
-    strcpy(pkt_out->node_ip, pkt_in->node_ip);
-    pkt_out->node_port = pkt_in->node_port;
-
-    // writing responsible node to lookup-cache 
-    int i = dht_lookup_cache_find_empty(ws->node);
-    if (i != -1) {
-        dht_neighbor *n = calloc(1, sizeof(dht_neighbor));
-        n->PORT = calloc(7, sizeof(char));
-        n->IP = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
-
-        strcpy(n->IP, pkt_out->node_ip);
-        snprintf(n->PORT, 6, "%d", pkt_out->node_port);
-        n->ID = pkt_out->node_id;
-
-        ws->node->lookup_cache->nodes[i] = n;
-    }
-
-    return 1; // don't answer received replies
+    return 1; // don't answer received replies / notfies
 }
 
 int udp_handle(int *in_fd, webserver *ws) {
-    char *buf = calloc(UDP_DATA_SIZE, sizeof(char));
+    char *buf = calloc(UDP_DATA_SIZE+1, sizeof(char));
 
-    if (ws->node->status == OK) {
+    udp_packet *pkt_in = udp_packet_create(0, 0, 0, NULL, NULL);
+    if (pkt_in == NULL) perror("Error initializing packet structure.");
+
+    udp_packet *pkt_out = udp_packet_create(0, 0, 0, NULL, NULL);
+    if (pkt_out == NULL) perror("Error initializing packet structure.");
+
+    if (ws->node->status == JOINING) {
+        // This node wants to join an existing DHT
+        pkt_out->type = JOIN;
+        pkt_out->hash = 0;
+        pkt_out->node_id = ws->node->ID;
+        strcpy(pkt_out->node_ip, ws->HOST);
+        pkt_out->node_port = strtol(ws->PORT, NULL, 10);
+        
+        strcpy(pkt_in->node_ip, ws->node->succ->IP);
+        pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+
+    } else {
         // TODO: refactor this into combined function in socket (ideally)
         struct sockaddr_in addr;
         socklen_t addr_len = sizeof(addr);
@@ -183,7 +196,7 @@ int udp_handle(int *in_fd, webserver *ws) {
                     // buffer[bytes_received] is where we want to continue to write (the next first byte)
                     buf + n_bytes,
                     // the size of the space from buffer[bytes_received] to buffer[bufsize-1]
-                    (UDP_DATA_SIZE-1) - n_bytes,
+                    (UDP_DATA_SIZE) - n_bytes,
                     0,
                     (struct sockaddr *) &addr,
                     &addr_len
@@ -198,24 +211,22 @@ int udp_handle(int *in_fd, webserver *ws) {
 
             return -1;
         }
+
+        udp_parse_packet(buf, pkt_in);
+    
+        if (udp_process_packet(ws, pkt_out, pkt_in) != 0) {
+            udp_packet_free(pkt_in);
+            udp_packet_free(pkt_out);
+            free(buf);
+        }
     }
 
-    udp_packet *pkt_in;
-    pkt_in = udp_packet_create(0, 0, 0, NULL, NULL);
-    if (pkt_in == NULL) perror("Error initializing packet structure.");
+    char *res_msg = udp_packet_serialize(pkt_out);
 
-    udp_packet *pkt_out = udp_packet_create(0, 0, 0, NULL, NULL);
-
-    if (buf != NULL && udp_parse_packet(buf, pkt_in) != 0) pkt_in = NULL;
-
-    if (udp_process_packet(ws, pkt_out, pkt_in) == 0) {
-        char *res_msg = udp_packet_serialize(pkt_out);
-
-        char *port_str = calloc(7, sizeof(char));
-        snprintf(port_str, 6, "%d", pkt_in->node_port);
-        socket_send(ws, in_fd, res_msg, pkt_out->bytesize, pkt_in->node_ip, port_str);
-        free(res_msg);
-    }
+    char *port_str = calloc(7, sizeof(char));
+    snprintf(port_str, 6, "%d", pkt_in->node_port);
+    socket_send(ws, in_fd, res_msg, pkt_out->bytesize, pkt_in->node_ip, port_str);
+    free(res_msg);
 
     udp_packet_free(pkt_in);
     udp_packet_free(pkt_out);

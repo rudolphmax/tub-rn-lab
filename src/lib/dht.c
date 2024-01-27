@@ -42,12 +42,38 @@ dht_node* dht_node_init(char *dht_node_id, char *dht_anchor_ip, char *dht_anchor
             dht_anchor_ip,
             dht_anchor_port
         );
+    } else {
+        if (getenv("PRED_ID") != NULL && getenv("PRED_IP") != NULL && getenv("PRED_PORT") != NULL) {
+            node->pred = dht_neighbor_init(
+                getenv("PRED_ID"),
+                getenv("PRED_IP"),
+                getenv("PRED_PORT")
+            );
+        }
+
+        if (getenv("SUCC_ID") != NULL && getenv("SUCC_IP") != NULL && getenv("SUCC_PORT") != NULL) {
+            node->succ = dht_neighbor_init(
+                getenv("SUCC_ID"),
+                getenv("SUCC_IP"),
+                getenv("SUCC_PORT")
+            );
+        }
     }
 
     node->lookup_cache = calloc(1, sizeof(dht_lookup_cache));
     for (int i = 0; i < LOOKUP_CACHE_SIZE; i++) node->lookup_cache->hashes[i] = -1;
 
     return node;
+}
+
+dht_neighbor *dht_neighbor_from_packet(udp_packet *pkt) {
+    dht_neighbor *n = calloc(1, sizeof(dht_neighbor));
+    n->PORT = calloc(7, sizeof(char));
+    n->IP = calloc(HOSTNAME_MAX_LENGTH, sizeof(char));
+
+    strcpy(n->IP, pkt->node_ip);
+    snprintf(n->PORT, 6, "%d", pkt->node_port);
+    n->ID = pkt->node_id;
 }
 
 void dht_node_free(dht_node *node) {
