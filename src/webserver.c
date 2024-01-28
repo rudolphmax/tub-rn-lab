@@ -43,12 +43,19 @@ webserver* webserver_init(char* hostname, char* port_str) {
     return ws;
 }
 
-void handle_connection(int *in_fd, enum connection_protocol protocol, webserver *ws, file_system *fs) {
+/**
+ * TODO: Doc this
+ * @return 0 when the connection is still alive, -1 when the socket's events have to be reevaluated
+ */
+int handle_connection(short events, int *in_fd, enum connection_protocol protocol, webserver *ws, file_system *fs) {
     if (protocol == TCP) {
-        http_handle(in_fd, ws, fs);
+        if (http_handle(in_fd, ws, fs) < 0) return -1;
     } else if (protocol == UDP) {
-        udp_handle(in_fd, ws);
+        udp_handle(events, in_fd, ws);
+        return -1;
     }
+
+    return 0;
 }
 
 int webserver_tick(webserver *ws, file_system *fs) {
@@ -90,28 +97,20 @@ int webserver_tick(webserver *ws, file_system *fs) {
         }
 
         // Handle UDP server socket & all client sockets
-        handle_connection(&(sock->fd), sock_config->protocol, ws, fs);
-        sock->events = 0;
-        if (sock_config->is_server_socket == 1) return 0;
+        if (handle_connection(sock->revents, &(sock->fd), sock_config->protocol, ws, fs) < 0) {
+            // Disableing all events
+            sock->events = 0;
 
-        // Finding corresponding server-socket and re-enabling it
-        /*
-        for (int j = 0; j < ws->num_open_sockets; j++) {
-            if (ws->open_sockets_config[j].is_server_socket != 1) continue;
+            if (sock_config->protocol == TCP) {
+                // Disabling the TCP client socket
+                sock->fd = -1;
+                sock_config->is_server_socket = 0;
+                sock_config->protocol = 0;
 
-            if (ws->open_sockets_config[j].protocol == sock_config->protocol) {
-                ws->open_sockets[j].events = POLLIN;
-                break;
+                // re-enableing the TCP server socket
+                // TODO: Check if this is necessary
             }
         }
-        */
-
-        // Disabling the client socket
-        // TODO: when to remove client sockets?
-        /*sock->events = 0;
-        sock->fd = -1;
-        sock_config->is_server_socket = 0;
-        sock_config->protocol = 0;*/
     }
 
     return 0;
@@ -167,6 +166,9 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+    int should_stabilize = 0;
+    if (getenv("NO_STABILIZE") == NULL) should_stabilize = 1;
+
     int t = 0;
     int quit = 0;
     while(!quit) {
@@ -178,17 +180,17 @@ int main(int argc, char **argv) {
 
             if (sock_config->is_server_socket == 1) {
                 if ((ws->node->status == JOINING | ws->node->status == STABILIZING) && sock_config->protocol == UDP) {
-                    sock->events = sock->events | POLLOUT;
+                    sock->events = POLLOUT;
                     break;
                 } else if (ws->node->status == OK) {
-                    sock->events = sock->events | POLLIN;
+                    sock->events = POLLIN | POLLOUT;
                 }
             }
         }
 
         if (webserver_tick(ws, fs) != 0) quit = 1;
 
-        if (getenv("NO_STABILIZE") == NULL && t % STABILIZE_INTERVAL == 0 && ws->node != NULL) {
+        if (should_stabilize == 1 && t % STABILIZE_INTERVAL == 0 && ws->node != NULL) {
             ws->node->status = STABILIZING;
             t = 0;
         }

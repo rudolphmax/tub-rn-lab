@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #define LOOKUP_CACHE_SIZE 10
-#define STABILIZE_INTERVAL 15
+#define STABILIZE_INTERVAL 10
 
 typedef enum dht_node_status {
     JOINING,

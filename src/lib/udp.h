@@ -55,8 +55,9 @@ int udp_send_to_node(webserver *ws, int *sockfd, udp_packet *packet, dht_neighbo
  * Handles an incoming UDP connection.
  * @param in_fd Socket File Descriptor of the accepted connection.
  * @param ws Webserver object.
+ * @param evemt The event(s) returned by poll.
  * @return 0 on success, -1 on error.
  */
-int udp_handle(int *in_fd, webserver *ws);
+int udp_handle(short events, int *in_fd, webserver *ws);
 
 #endif //RN_PRAXIS_UDP_H

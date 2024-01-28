@@ -58,7 +58,8 @@ char* udp_packet_serialize(udp_packet *pkt) {
     pkt->bytesize = UDP_DATA_SIZE;
     char *msg = calloc(pkt->bytesize, sizeof(char));
 
-    memcpy(msg, &(pkt->type), 1);
+    // memcpy(msg, &(pkt->type), 1);
+    msg[0] = pkt->type;
     memcpy(msg + 1, &h, 2);
     memcpy(msg + 3, &id, 2);
     memcpy(msg + 5, &ip, 4);
@@ -158,6 +159,10 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
         return 0;
 
     } else if (pkt_in->type == STABILIZE)  {
+        if (ws->node->pred == NULL) {
+            ws->node->pred = dht_neighbor_from_packet(pkt_in);
+        }
+
         pkt_out->type = NOTIFY;
         pkt_out->hash = 0;
         pkt_out->node_id = ws->node->pred->ID;
@@ -186,7 +191,7 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
     return 1; // don't answer received replies / notfies
 }
 
-int udp_handle(int *in_fd, webserver *ws) {
+int udp_handle(short events, int *in_fd, webserver *ws) {
     char *buf = calloc(UDP_DATA_SIZE+1, sizeof(char));
 
     udp_packet *pkt_in = udp_packet_create(0, 0, 0, NULL, NULL);
@@ -219,7 +224,7 @@ int udp_handle(int *in_fd, webserver *ws) {
 
         ws->node->status = OK;
 
-    } else {
+    } else if (events & POLLIN) {
         // TODO: refactor this into combined function in socket (ideally)
         struct sockaddr_in addr;
         socklen_t addr_len = sizeof(addr);
