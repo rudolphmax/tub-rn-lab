@@ -8,20 +8,20 @@ dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neig
         return NULL;
     }
 
-    if (str_is_uint16(neighbor_id) < 0) {
+    if (neighbor_id != NULL && str_is_uint16(neighbor_id) < 0) {
         perror("Invalid DHT Node ID.");
         return NULL;
     }
 
     dht_neighbor *neighbor = calloc(1, sizeof(dht_neighbor));
-    neighbor->ID = strtol(neighbor_id, NULL, 10);
+    if (neighbor_id != NULL) neighbor->ID = strtol(neighbor_id, NULL, 10);
     neighbor->PORT = neighbor_port;
     neighbor->IP = neighbor_ip;
 
     return neighbor;
 }
 
-dht_node* dht_node_init(char *dht_node_id) {
+dht_node* dht_node_init(char *dht_node_id, char *dht_anchor_ip, char *dht_anchor_port) {
     if (str_is_uint16(dht_node_id) < 0) {
         perror("Invalid DHT Node ID.");
         return NULL;
@@ -29,21 +29,34 @@ dht_node* dht_node_init(char *dht_node_id) {
 
     dht_node *node = calloc(1, sizeof(dht_node));
     node->ID = strtol(dht_node_id, NULL, 10);
+    node->status = OK;
 
-    node->pred = dht_neighbor_init(
-        getenv("PRED_ID"),
-        getenv("PRED_IP"),
-        getenv("PRED_PORT")
-    );
-    node->succ = dht_neighbor_init(
-        getenv("SUCC_ID"),
-        getenv("SUCC_IP"),
-        getenv("SUCC_PORT")
-    );
+    node->pred = NULL;
+    node->succ = NULL;
 
-    if (node->pred == NULL || node->succ == NULL) {
-        free(node);
-        return NULL;
+    if (dht_anchor_ip != NULL && dht_anchor_port != NULL) {
+        node->status = JOINING;
+        node->succ = dht_neighbor_init(
+            NULL,
+            dht_anchor_ip,
+            dht_anchor_port
+        );
+    } else {
+        if (getenv("PRED_ID") != NULL && getenv("PRED_IP") != NULL && getenv("PRED_PORT") != NULL) {
+            node->pred = dht_neighbor_init(
+                getenv("PRED_ID"),
+                getenv("PRED_IP"),
+                getenv("PRED_PORT")
+            );
+        }
+
+        if (getenv("SUCC_ID") != NULL && getenv("SUCC_IP") != NULL && getenv("SUCC_PORT") != NULL) {
+            node->succ = dht_neighbor_init(
+                getenv("SUCC_ID"),
+                getenv("SUCC_IP"),
+                getenv("SUCC_PORT")
+            );
+        }
     }
 
     node->lookup_cache = calloc(1, sizeof(dht_lookup_cache));
@@ -53,8 +66,8 @@ dht_node* dht_node_init(char *dht_node_id) {
 }
 
 void dht_node_free(dht_node *node) {
-    free(node->pred);
-    free(node->succ);
+    if (node->pred != NULL) free(node->pred);
+    if (node->succ != NULL)free(node->succ);
     free(node);
 }
 

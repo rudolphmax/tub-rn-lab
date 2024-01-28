@@ -64,7 +64,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
         struct pollfd *sock = &(ws->open_sockets[i]);
         open_socket *sock_config = &(ws->open_sockets_config[i]);
 
-        if (!(sock->revents & POLLIN)) continue;
+        if (!(sock->revents & (POLLIN | POLLOUT))) continue;
 
         // Handle TCP server-sockets
         if (sock_config->is_server_socket == 1 && sock_config->protocol == TCP) {
@@ -74,7 +74,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                 continue;
             }
 
-            // appending the client socket & disabling TCP server socket
+            // appending the client socket
             for (int j = 0; j < MAX_NUM_OPEN_SOCKETS; j++) {
                 if (ws->open_sockets[j].fd == -1) {
                     sock->events = 0;
@@ -91,9 +91,11 @@ int webserver_tick(webserver *ws, file_system *fs) {
 
         // Handle UDP server socket & all client sockets
         handle_connection(&(sock->fd), sock_config->protocol, ws, fs);
+        sock->events = 0;
         if (sock_config->is_server_socket == 1) return 0;
 
         // Finding corresponding server-socket and re-enabling it
+        /*
         for (int j = 0; j < ws->num_open_sockets; j++) {
             if (ws->open_sockets_config[j].is_server_socket != 1) continue;
 
@@ -102,6 +104,7 @@ int webserver_tick(webserver *ws, file_system *fs) {
                 break;
             }
         }
+        */
 
         // Disabling the client socket
         // TODO: when to remove client sockets?
@@ -125,14 +128,13 @@ void webserver_free(webserver *ws) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != EXPECTED_NUMBER_OF_PARAMS + 1 && argc != EXPECTED_NUMBER_OF_PARAMS + 2) {
-        perror("Wrong number of args. Usage: ./webserver {ip} {port} {optional: dht_node_id}");
+    if (argc != MIN_NUMBER_OF_PARAMS + 1 && argc != MAX_NUMBER_OF_PARAMS + 1) {
+        perror("Wrong number of args. Usage: ./webserver {IP} {PORT} {Node ID} {? Anchor IP} {? Anchor PORT} ; When Anchor IP is set, Anchor PORT must be set as well.");
         exit(EXIT_FAILURE);
     }
 
-    // TODO: Refactor this into a function
     // initializing underlying filesystem
-    file_system *fs = fs_create(500); // TODO: Which size to choose?
+    file_system *fs = fs_create(50);
     fs_mkdir(fs, "/static");
     fs_mkdir(fs, "/dynamic");
     fs_mkfile(fs, "/static/foo");
@@ -149,9 +151,9 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    if (argc == 4) { // expecting dht-node-id
-        ws->node = dht_node_init(argv[3]);
-    }
+    if (argc > 4) {
+        ws->node = dht_node_init(argv[3], argv[4], argv[5]);
+    } else ws->node = dht_node_init(argv[3], NULL, NULL);
 
     // opening UDP Socket
     if (socket_open(ws, SOCK_DGRAM) < 0) {
@@ -165,9 +167,31 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+    int t = 0;
     int quit = 0;
     while(!quit) {
+        t++;
+
+        for (int i = 0; i < ws->num_open_sockets; i++) {
+            struct pollfd *sock = &(ws->open_sockets[i]);
+            open_socket *sock_config = &(ws->open_sockets_config[i]);
+
+            if (sock_config->is_server_socket == 1) {
+                if ((ws->node->status == JOINING | ws->node->status == STABILIZING) && sock_config->protocol == UDP) {
+                    sock->events = sock->events | POLLOUT;
+                    break;
+                } else if (ws->node->status == OK) {
+                    sock->events = sock->events | POLLIN;
+                }
+            }
+        }
+
         if (webserver_tick(ws, fs) != 0) quit = 1;
+
+        if (t % STABILIZE_INTERVAL == 0 && ws->node != NULL) {
+            ws->node->status = STABILIZING;
+            t = 0;
+        }
     }
 
     for (int i = 0; i < ws->num_open_sockets; i++) {

@@ -6,7 +6,8 @@
 #include "lib/dht.h"
 
 #define HOSTNAME_MAX_LENGTH 16 // Max. hostname length INCLUDING \0
-#define EXPECTED_NUMBER_OF_PARAMS 2
+#define MIN_NUMBER_OF_PARAMS 3
+#define MAX_NUMBER_OF_PARAMS 5
 #define MAX_NUM_OPEN_SOCKETS 10
 #define MAX_DATA_SIZE 1024
 #define RECEIVE_ATTEMPTS 1 // The amount of times the server should retry receiving from a socket if an error occurs

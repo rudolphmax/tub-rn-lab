@@ -2,3 +2,5 @@
 build/*
 .pytest_cache/*
 test/__pycache__/
+.vscode/*
+.idea/*

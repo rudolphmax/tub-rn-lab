@@ -4,6 +4,13 @@
 #include <stdint.h>
 
 #define LOOKUP_CACHE_SIZE 10
+#define STABILIZE_INTERVAL 10
+
+typedef enum dht_node_status {
+    JOINING,
+    STABILIZING,
+    OK
+} dht_node_status;
 
 typedef struct dht_neighbor {
     uint16_t ID;
@@ -25,6 +32,7 @@ typedef struct dht_node {
     dht_neighbor* pred;
     dht_neighbor* succ;
     dht_lookup_cache* lookup_cache;
+    dht_node_status status;
 } dht_node;
 
 /**
@@ -42,7 +50,7 @@ dht_neighbor* dht_neighbor_init(char *neighbor_id, char* neighbor_ip, char* neig
  * @param dht_node_id the ID of the webserver in the DHT (16Bit int in string-form).
  * @return 0 on success, -1 on error
  */
-dht_node* dht_node_init(char *dht_node_id);
+dht_node* dht_node_init(char *dht_node_id, char *dht_anchor_ip, char *dht_anchor_port);
 
 /**
  * Frees the given dht_node-object.

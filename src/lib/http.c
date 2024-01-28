@@ -162,8 +162,6 @@ int http_response_bytesize(http_response *res) {
 
     size += 2; // \r\n
     size += strlen(res->body);
-
-    // TODO: Its missing exactly this amount of bytes (Says Valgrind). Why?
     size += 3;
     size += strlen(res->body);
 
@@ -541,7 +539,7 @@ int http_process_request(webserver *ws, http_response *res, http_request *req, s
         }
         if (udp_sock == -1) return -1;
 
-        udp_packet *packet = udp_packet_create(0, h, ws->node->ID, ws->HOST, ws->PORT);
+        udp_packet *packet = udp_packet_create(LOOKUP, h, ws->node->ID, ws->HOST, ws->PORT);
         if (udp_send_to_node(ws, &udp_sock, packet, ws->node->succ) < 0) {
             perror("Error sending to node.");
         }

@@ -48,6 +48,80 @@ def dynamic_peer(request):
     return runner
 
 
+def test_join(dynamic_peer, timeout):
+    """Confirm that nodes started with reference to peer join the DHT"""
+
+    self = dht.Peer(0x1000, "127.0.0.1", 4711)
+    anchor = dht.Peer(0x2000, "127.0.0.1", 4712)
+
+    with dht.peer_socket(anchor, timeout) as anchor_mock:
+        with dynamic_peer(
+                self, anchor=anchor
+        ):
+            time.sleep(0.1)
+
+        dht.expect_msg(anchor_mock, dht.Message(dht.Flags.join, None, self))
+
+
+def test_join_react(dynamic_peer, timeout):
+    """Check that the joining peer is notified"""
+
+    predecessor = dht.Peer(0x0000, "127.0.0.1", 4710)
+    self = dht.Peer(0x2000, "127.0.0.1", 4711)
+    successor = dht.Peer(0x3000, "127.0.0.1", 4712)
+    joining = dht.Peer(0x1000, "127.0.0.1", 4713)
+
+    with dht.peer_socket(
+        predecessor, timeout
+    ) as pred_mock, dynamic_peer(
+        self, neighbors=(predecessor, successor)
+    ), dht.peer_socket(
+        successor, timeout
+    ), dht.peer_socket(
+        joining, timeout
+    ) as join_mock:
+        # Send join
+        join = dht.Message(dht.Flags.join, 0, joining)
+        pred_mock.sendto(dht.serialize(join), (self.ip, self.port))
+
+        time.sleep(0.1)
+
+        # Receive notify
+        dht.expect_msg(join_mock, dht.Message(dht.Flags.notify, None, self))
+
+
+def test_join_forward(dynamic_peer, timeout):
+    """Ensure that join packets are forwarded"""
+
+    predecessor = dht.Peer(0x0000, "127.0.0.1", 4710)
+    self = dht.Peer(0x1000, "127.0.0.1", 4711)
+    successor = dht.Peer(0x2000, "127.0.0.1", 4712)
+    joining = dht.Peer(0x3000, "127.0.0.1", 4713)
+
+    with dht.peer_socket(
+        predecessor, timeout
+    ) as pred_mock, dynamic_peer(
+        self, neighbors=(predecessor, successor)
+    ), dht.peer_socket(
+        successor, timeout
+    ) as succ_mock, dht.peer_socket(
+        joining, timeout
+    ) as join_mock:
+        # Send join
+        join = dht.Message(dht.Flags.join, 0, joining)
+        pred_mock.sendto(dht.serialize(join), (self.ip, self.port))
+
+        time.sleep(0.1)
+
+        # Receive forwarded join
+        dht.expect_msg(succ_mock, dht.Message(dht.Flags.join, None, joining))
+
+        assert (
+            util.bytes_available(pred_mock) == 0
+        ), "Data received on predecessor socket"
+        assert util.bytes_available(join_mock) == 0, "Data received on joining socket"
+
+
 def test_stabilize(dynamic_peer, timeout):
     """Ensure peers send stabilize messages"""
 
@@ -134,80 +208,6 @@ def test_successor_update(dynamic_peer, timeout):
         assert (
             util.bytes_available(pred_mock) == 0
         ), "Data received on previous succeessor socket"
-
-
-def test_join(dynamic_peer, timeout):
-    """Confirm that nodes started with reference to peer join the DHT"""
-
-    self = dht.Peer(0x1000, "127.0.0.1", 4711)
-    anchor = dht.Peer(0x2000, "127.0.0.1", 4712)
-
-    with dht.peer_socket(anchor, timeout) as anchor_mock:
-        with dynamic_peer(
-                self, anchor=anchor
-        ):
-            time.sleep(0.1)
-
-        dht.expect_msg(anchor_mock, dht.Message(dht.Flags.join, None, self))
-
-
-def test_join_forward(dynamic_peer, timeout):
-    """Ensure that join packets are forwarded"""
-
-    predecessor = dht.Peer(0x0000, "127.0.0.1", 4710)
-    self = dht.Peer(0x1000, "127.0.0.1", 4711)
-    successor = dht.Peer(0x2000, "127.0.0.1", 4712)
-    joining = dht.Peer(0x3000, "127.0.0.1", 4713)
-
-    with dht.peer_socket(
-        predecessor, timeout
-    ) as pred_mock, dynamic_peer(
-        self, neighbors=(predecessor, successor)
-    ), dht.peer_socket(
-        successor, timeout
-    ) as succ_mock, dht.peer_socket(
-        joining, timeout
-    ) as join_mock:
-        # Send join
-        join = dht.Message(dht.Flags.join, 0, joining)
-        pred_mock.sendto(dht.serialize(join), (self.ip, self.port))
-
-        time.sleep(0.1)
-
-        # Receive forwarded join
-        dht.expect_msg(succ_mock, dht.Message(dht.Flags.join, None, joining))
-
-        assert (
-            util.bytes_available(pred_mock) == 0
-        ), "Data received on predecessor socket"
-        assert util.bytes_available(join_mock) == 0, "Data received on joining socket"
-
-
-def test_join_react(dynamic_peer, timeout):
-    """Check that the joining peer is notified"""
-
-    predecessor = dht.Peer(0x0000, "127.0.0.1", 4710)
-    self = dht.Peer(0x2000, "127.0.0.1", 4711)
-    successor = dht.Peer(0x3000, "127.0.0.1", 4712)
-    joining = dht.Peer(0x1000, "127.0.0.1", 4713)
-
-    with dht.peer_socket(
-        predecessor, timeout
-    ) as pred_mock, dynamic_peer(
-        self, neighbors=(predecessor, successor)
-    ), dht.peer_socket(
-        successor, timeout
-    ), dht.peer_socket(
-        joining, timeout
-    ) as join_mock:
-        # Send join
-        join = dht.Message(dht.Flags.join, 0, joining)
-        pred_mock.sendto(dht.serialize(join), (self.ip, self.port))
-
-        time.sleep(0.1)
-
-        # Receive notify
-        dht.expect_msg(join_mock, dht.Message(dht.Flags.notify, None, self))
 
 
 def test_dht(dynamic_peer):
