@@ -31,7 +31,6 @@ dht_node* dht_node_init(char *dht_node_id, char *dht_anchor_ip, char *dht_anchor
     node->ID = strtol(dht_node_id, NULL, 10);
     node->status = OK;
 
-    node->status = INCONSISTENT;
     node->pred = NULL;
     node->succ = NULL;
 

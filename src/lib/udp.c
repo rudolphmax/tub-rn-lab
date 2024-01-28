@@ -159,8 +159,8 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
 
     } else if (pkt_in->type == NOTIFY) {
         free(ws->node->succ);
-        ws->node->pred = dht_neighbor_from_packet(pkt_in);
-        ws->node->status = INCONSISTENT;
+        ws->node->succ = dht_neighbor_from_packet(pkt_in);
+        ws->node->status = OK;
 
     } else if (pkt_in->type == REPLY) {
         pkt_out->node_id = pkt_in->node_id;
@@ -186,8 +186,7 @@ int udp_handle(int *in_fd, webserver *ws) {
     udp_packet *pkt_out = udp_packet_create(0, 0, 0, NULL, NULL);
     if (pkt_out == NULL) perror("Error initializing packet structure.");
 
-    if (ws->node->status == JOINING) {
-        // This node wants to join an existing DHT
+    if (ws->node->status == JOINING) { // This node wants to join an existing DHT
         pkt_out->type = JOIN;
         pkt_out->hash = 0;
         pkt_out->node_id = ws->node->ID;
@@ -196,6 +195,18 @@ int udp_handle(int *in_fd, webserver *ws) {
         
         strcpy(pkt_in->node_ip, ws->node->succ->IP);
         pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+
+    } else if (ws->node->status == STABILIZING) {
+        pkt_out->type = STABILIZE;
+        pkt_out->hash = ws->node->ID;
+        pkt_out->node_id = ws->node->ID;
+        strcpy(pkt_out->node_ip, ws->HOST);
+        pkt_out->node_port = strtol(ws->PORT, NULL, 10);
+        
+        strcpy(pkt_in->node_ip, ws->node->succ->IP);
+        pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+
+        ws->node->status = OK;
 
     } else {
         // TODO: refactor this into combined function in socket (ideally)
