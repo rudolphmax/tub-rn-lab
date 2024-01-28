@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
 
         if (webserver_tick(ws, fs) != 0) quit = 1;
 
-        if (t % STABILIZE_INTERVAL == 0 && ws->node != NULL) {
+        if (getenv("NO_STABILIZE") == NULL && t % STABILIZE_INTERVAL == 0 && ws->node != NULL) {
             ws->node->status = STABILIZING;
             t = 0;
         }

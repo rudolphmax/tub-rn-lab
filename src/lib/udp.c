@@ -112,12 +112,12 @@ int udp_parse_packet(char *pkt_string, udp_packet *pkt) {
 int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) {
     if (pkt_in == NULL) return -1;
 
-    unsigned short responsibility;
-    if (ws->node == NULL) responsibility = 1;
-    else if (pkt_in->type == JOIN) responsibility = dht_node_is_responsible(ws->node, pkt_in->node_id);
-    else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
-
     if (pkt_in->type == LOOKUP || pkt_in->type == JOIN) {
+        unsigned short responsibility;
+        if (ws->node == NULL) responsibility = 1;
+        else if (pkt_in->type == JOIN) responsibility = dht_node_is_responsible(ws->node, pkt_in->node_id);
+        else responsibility = dht_node_is_responsible(ws->node, pkt_in->hash);
+
         if (responsibility == 0 || (pkt_in->type == JOIN && responsibility == 2)) { // -> forward message to successor
             strcpy(pkt_out->node_ip, pkt_in->node_ip);
             pkt_out->node_port = pkt_in->node_port;
@@ -157,10 +157,19 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
 
         return 0;
 
+    } else if (pkt_in->type == STABILIZE)  {
+        pkt_out->type = NOTIFY;
+        pkt_out->hash = 0;
+        pkt_out->node_id = ws->node->pred->ID;
+        strcpy(pkt_out->node_ip, ws->node->pred->IP);
+        pkt_out->node_port = strtol(ws->node->pred->PORT, NULL, 10);
+        return 0;
+
     } else if (pkt_in->type == NOTIFY) {
-        free(ws->node->succ);
-        ws->node->succ = dht_neighbor_from_packet(pkt_in);
-        ws->node->status = OK;
+        if (pkt_in->node_id != ws->node->ID || pkt_in->node_port != strtol(ws->PORT, NULL, 10) || strcmp(pkt_in->node_ip, ws->HOST) != 0) {
+            free(ws->node->succ);
+            ws->node->succ = dht_neighbor_from_packet(pkt_in);
+        }
 
     } else if (pkt_in->type == REPLY) {
         pkt_out->node_id = pkt_in->node_id;
@@ -196,7 +205,9 @@ int udp_handle(int *in_fd, webserver *ws) {
         strcpy(pkt_in->node_ip, ws->node->succ->IP);
         pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
 
-    } else if (ws->node->status == STABILIZING) {
+        ws->node->status = OK;
+
+    } else if (ws->node->status == STABILIZING) { // This node has to stabilize
         pkt_out->type = STABILIZE;
         pkt_out->hash = ws->node->ID;
         pkt_out->node_id = ws->node->ID;
@@ -244,6 +255,7 @@ int udp_handle(int *in_fd, webserver *ws) {
             udp_packet_free(pkt_in);
             udp_packet_free(pkt_out);
             free(buf);
+            return -1;
         }
     }
 
