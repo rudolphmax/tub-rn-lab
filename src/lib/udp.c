@@ -213,14 +213,16 @@ int udp_handle(short events, int *in_fd, webserver *ws) {
         ws->node->status = OK;
 
     } else if (ws->node->status == STABILIZING) { // This node has to stabilize
-        pkt_out->type = STABILIZE;
-        pkt_out->hash = ws->node->ID;
-        pkt_out->node_id = ws->node->ID;
-        strcpy(pkt_out->node_ip, ws->HOST);
-        pkt_out->node_port = strtol(ws->PORT, NULL, 10);
-        
-        strcpy(pkt_in->node_ip, ws->node->succ->IP);
-        pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+        if (ws->node->succ != NULL) {
+            pkt_out->type = STABILIZE;
+            pkt_out->hash = ws->node->ID;
+            pkt_out->node_id = ws->node->ID;
+            strcpy(pkt_out->node_ip, ws->HOST);
+            pkt_out->node_port = strtol(ws->PORT, NULL, 10);
+            
+            strcpy(pkt_in->node_ip, ws->node->succ->IP);
+            pkt_in->node_port = strtol(ws->node->succ->PORT, NULL, 10);
+        }
 
         ws->node->status = OK;
 
