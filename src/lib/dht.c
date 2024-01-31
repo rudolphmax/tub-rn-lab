@@ -68,6 +68,7 @@ dht_node* dht_node_init(char *dht_node_id, char *dht_anchor_ip, char *dht_anchor
 void dht_node_free(dht_node *node) {
     if (node->pred != NULL) free(node->pred);
     if (node->succ != NULL)free(node->succ);
+    free(node->lookup_cache);
     free(node);
 }
 

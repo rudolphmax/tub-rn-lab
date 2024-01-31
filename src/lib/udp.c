@@ -271,6 +271,7 @@ int udp_handle(short events, int *in_fd, webserver *ws) {
     char *port_str = calloc(7, sizeof(char));
     snprintf(port_str, 6, "%d", pkt_in->node_port);
     socket_send(ws, in_fd, res_msg, pkt_out->bytesize, pkt_in->node_ip, port_str);
+    free(port_str);
     free(res_msg);
 
     udp_packet_free(pkt_in);

@@ -120,6 +120,7 @@ void webserver_free(webserver *ws) {
     free(ws->HOST);
     free(ws->PORT);
     free(ws->open_sockets);
+    free(ws->open_sockets_config);
 
     if (ws->node != NULL) dht_node_free(ws->node);
 
