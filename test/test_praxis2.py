@@ -55,14 +55,13 @@ def test_listen(static_peer):
     """
 
     self = dht.Peer(None, '127.0.0.1', 4711)
-    with static_peer(self), pytest.raises(OSError) as exception_info:
-        time.sleep(.1)
-
-        # Attempt to open the port that the implementation should have opened
-        with dht.peer_socket(self):
-            pass
-
-        assert exception_info.errno == errno.EADDRINUSE, "UDP port not open"
+    with static_peer(self):
+        local_udp_ports = [
+            int(line.split()[1].split(':')[1], base=16)
+            for line in
+            open('/proc/net/udp', 'r').read().splitlines()[1:]
+        ]
+        assert self.port in local_udp_ports, "UDP port not open"
 
 
 @pytest.mark.parametrize("uri", ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'])
