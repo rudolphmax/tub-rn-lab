@@ -588,7 +588,7 @@ int http_handle(int *in_fd, webserver *ws, file_system *fs) {
     } else perror("Error processing request");
 
     http_response_free(res);
-    http_request_free(req);
+    if (req != NULL) http_request_free(req);
 
     free(buf);
     return 0;

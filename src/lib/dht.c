@@ -68,13 +68,18 @@ dht_node* dht_node_init(char *dht_node_id, char *dht_anchor_ip, char *dht_anchor
 void dht_node_free(dht_node *node) {
     if (node->pred != NULL) free(node->pred);
     if (node->succ != NULL)free(node->succ);
+    free(node->lookup_cache);
     free(node);
 }
 
 unsigned short dht_node_is_responsible(dht_node *node, uint16_t hash) {
+    if (node->pred == NULL) return 1;
+
     if (node->pred->ID > node->ID) {
         if (node->ID >= hash || node->pred->ID < hash) return 1;
     } else if (node->ID >= hash && node->pred->ID < hash) return 1;
+    
+    if (node->succ == NULL) return 1;
 
     if (node->ID > node->succ->ID) {
         if (hash <= node->succ->ID || hash > node->ID) return 2;
