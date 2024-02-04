@@ -147,6 +147,10 @@ int udp_process_packet(webserver *ws, udp_packet  *pkt_out, udp_packet *pkt_in) 
             if (pkt_in->type == JOIN) {
                 free(ws->node->pred);
                 ws->node->pred = dht_neighbor_from_packet(pkt_in);
+
+                if (ws->node->succ == NULL) {
+                    ws->node->succ = dht_neighbor_from_packet(pkt_in);
+                }
             }
 
         } else if (responsibility == 2) {
@@ -265,6 +269,8 @@ int udp_handle(short events, int *in_fd, webserver *ws) {
             return -1;
         }
     }
+
+    if (!(events & POLLOUT)) return 0;
 
     char *res_msg = udp_packet_serialize(pkt_out);
 
