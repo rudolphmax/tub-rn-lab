@@ -54,7 +54,7 @@ def test_listen(static_peer):
     Listens on UDP port.
     """
 
-    self = dht.Peer(None, '127.0.0.1', 4711)
+    self = dht.Peer(0x0, '127.0.0.1', 4711)
     with static_peer(self):
         local_udp_ports = [
             int(line.split()[1].split(':')[1], base=16)
